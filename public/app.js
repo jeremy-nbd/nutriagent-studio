@@ -96,7 +96,7 @@ function setBusy(busy) {
 function renderWelcome() {
   const icons = ["▤", "◌", "↻"];
   $("#messages").innerHTML =
-    `<div class="welcome"><div class="welcome-icon">✳</div><h3>从一份记录开始，<br>一起看懂饮食。</h3><p>我可以整理记录、计算营养，并生成一份带有依据的报告。先选一个任务，看看我如何完成。</p><div class="suggestions">${state.config.scenarios.map((s, i) => `<button class="suggestion scenario-start" data-scenario="${s.id}"><span class="suggestion-icon">${icons[i]}</span><span><strong>${s.label}</strong><small>${s.description}</small></span><span class="suggestion-arrow">↗</span></button>`).join("")}</div><div class="welcome-footnote">${state.config.mode === "live" ? "当前已连接真实模型。模型决定调用哪些工具。" : "无需配置密钥。示例采用固定编排，计算工具真实执行。"}<br>所有示例数据均为虚构，不关联个人健康资料。</div></div>`;
+    `<div class="welcome"><div class="welcome-icon">✳</div><h3>从一份记录开始，<br>一起看懂饮食。</h3><p>我可以整理记录、计算营养，并生成一份带有依据的报告。先选一个任务，看看我如何完成。</p><div class="suggestions">${state.config.scenarios.map((s, i) => `<button class="suggestion scenario-start" data-scenario="${s.id}"><span class="suggestion-icon">${icons[i]}</span><span><strong>${s.label}</strong><small>${s.description}</small></span><span class="suggestion-arrow">↗</span></button>`).join("")}</div><div class="welcome-footnote">${state.config.mode === "live" ? "当前使用真实模型编排。模型决定调用哪些工具。" : "无需配置密钥。示例采用固定编排，计算工具真实执行。"}<br>所有示例数据均为虚构，不关联个人健康资料。</div></div>`;
 }
 
 function appendMessage(role, text, retry = false) {
@@ -506,6 +506,12 @@ async function boot() {
       api("/api/sample"),
     ]);
     state.config = config;
+    $("#connection-status").textContent =
+      config.mode === "live"
+        ? `已配置 ${config.provider} · ${config.configuredModel}，温度 ${config.temperature}，单次请求超时 ${config.timeoutSeconds} 秒。连接结果以实际任务为准。`
+        : config.configuredModel
+          ? `已选择 ${config.provider} · ${config.configuredModel}，等待在本地填写 API Key。`
+          : "尚未配置模型，当前使用示例模式。";
     state.sample = sample;
     $("#mode-badge").innerHTML =
       `<i></i>${config.mode === "live" ? "真实模型 · 示例数据" : "示例模式 · 无需密钥"}`;
@@ -531,7 +537,7 @@ async function boot() {
   } catch (error) {
     $("#mode-badge").textContent = "服务连接失败";
     $("#messages").innerHTML =
-      `<div class="welcome"><h3>暂时无法连接服务。</h3><p>${escapeHTML(error.message)}<br>请确认已运行 npm run dev，然后刷新页面。</p></div>`;
+      `<div class="welcome"><h3>暂时无法连接服务。</h3><p>${escapeHTML(error.message)}<br>请确认已运行 python3 run.py，然后刷新页面。</p></div>`;
     $("#send-button").disabled = true;
   }
 }

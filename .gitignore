@@ -6,3 +6,11 @@ node_modules/
 .DS_Store
 coverage/
 test-results/
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/

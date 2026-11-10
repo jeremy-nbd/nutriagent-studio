@@ -1,14 +1,17 @@
-name: checks
+name: Python checks
 on: [push, pull_request]
 permissions:
   contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.10', '3.12', '3.13']
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: 22
-      - run: npm run check
-      - run: npm test
+          python-version: ${{ matrix.python }}
+      - run: python -m compileall -q nutriagent run.py
+      - run: python -m unittest discover -s tests_python -v

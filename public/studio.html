@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      name="description"
+      content="NutriAgent Studio — 可追溯的营养分析与报告生成 Agent，交互式工程作品集。"
+    />
+    <title>NutriAgent Studio · 从记录到洞察</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <a
+      href="/"
+      style="
+        display: block;
+        text-align: center;
+        padding: 10px;
+        background: #f5eee5;
+        color: #865038;
+        font-size: 13px;
+      "
+      >← 返回营养记录与日周总结</a
+    >
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="NutriAgent Studio 首页"
+        ><img src="/favicon.svg" alt="" width="36" height="36" /><span
+          >NutriAgent<small>STUDIO / PORTFOLIO</small></span
+        ></a
+      >
+      <div class="sidebar-section">工作空间 <span>01</span></div>
+      <nav aria-label="主导航">
+        <button class="nav-item active" data-view="workspace">
+          <span class="nav-icon">◈</span> Agent 工作台
+          <span class="nav-arrow">↗</span>
+        </button>
+        <button class="nav-item" data-view="library">
+          <span class="nav-icon">▤</span> 我的报告
+          <span id="report-count" class="count">0</span>
+        </button>
+        <button class="nav-item" data-view="about">
+          <span class="nav-icon">⌘</span> 项目与架构
+        </button>
+      </nav>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-section">快速体验</div>
+      <div id="sidebar-scenarios" class="sidebar-scenarios"></div>
+      <div class="sidebar-bottom">
+        <div class="local-card">
+          <span class="status-dot"></span><strong>你的本地工作空间</strong>
+          <p>任务自动保存，随时继续。</p>
+          <button id="settings-button">模型连接设置 <span>↗</span></button>
+        </div>
+        <div class="profile">
+          <div class="avatar">J</div>
+          <div>
+            <strong>Jeremy 的作品集</strong><span>AI Application Engineer</span>
+          </div>
+          <span class="profile-dots">···</span>
+        </div>
+      </div>
+    </aside>
+    <main>
+      <header class="topbar">
+        <div>
+          个人作品集 <span>/</span>
+          <strong id="breadcrumb">Agent 工作台</strong>
+        </div>
+        <div class="topbar-right">
+          <span class="mode-badge" id="mode-badge"><i></i> 正在连接</span
+          ><button
+            class="icon-button"
+            id="help-button"
+            aria-label="查看项目说明"
+          >
+            ?
+          </button>
+        </div>
+      </header>
+      <section id="workspace-view" class="view">
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow"><span></span> FROM RECORDS TO INSIGHTS</div>
+            <h1>每一份分析，都有迹可循<span>。</span></h1>
+            <p>
+              让 Agent 整理饮食记录、调用计算工具，把结果变成一份可交付的报告。
+            </p>
+          </div>
+          <button class="button secondary" id="new-task">＋ 新建任务</button>
+        </div>
+        <div class="workspace-grid">
+          <section
+            class="conversation panel"
+            aria-labelledby="conversation-title"
+          >
+            <div class="panel-heading">
+              <div class="panel-title">
+                <span class="mini-logo">✳</span>
+                <div>
+                  <h2 id="conversation-title">营养分析助手</h2>
+                  <span id="agent-subtitle">工具驱动 · 结果可追溯</span>
+                </div>
+              </div>
+              <span class="quiet-badge" id="task-state">准备就绪</span>
+            </div>
+            <div id="messages" class="messages" aria-live="polite"></div>
+            <div class="composer-wrap">
+              <div id="context-note" class="context-note">
+                <span>◉</span> 已载入 3 天合成饮食记录
+                <span class="tiny-pill">DEMO</span>
+              </div>
+              <form id="chat-form">
+                <label class="sr-only" for="prompt">输入分析任务</label
+                ><textarea
+                  id="prompt"
+                  rows="2"
+                  maxlength="2000"
+                  placeholder="描述你的任务，或选择上面的示例…"
+                ></textarea>
+                <div class="composer-bottom">
+                  <span>Enter 发送 · Shift + Enter 换行</span
+                  ><button type="submit" id="send-button" aria-label="发送任务">
+                    ↑
+                  </button>
+                </div>
+              </form>
+              <p class="composer-note">
+                当前分析基于合成记录，不包含个人健康数据。
+              </p>
+            </div>
+          </section>
+          <section
+            class="report-panel panel"
+            aria-labelledby="report-panel-title"
+          >
+            <div class="report-toolbar">
+              <div class="report-tabs">
+                <button
+                  class="active"
+                  data-tab="report"
+                  id="report-panel-title"
+                >
+                  报告预览</button
+                ><button data-tab="evidence">计算依据</button>
+              </div>
+              <div class="report-actions">
+                <span id="version-badge">样张</span
+                ><button
+                  class="icon-button"
+                  id="expand-report"
+                  aria-label="展开报告"
+                >
+                  ⤢
+                </button>
+              </div>
+            </div>
+            <div id="report-container" class="report-container"></div>
+            <div class="report-footer">
+              <span
+                ><i class="status-dot"></i
+                ><span id="report-footer-label"
+                  >示例样张 · 尚未运行任务</span
+                ></span
+              >
+              <div>
+                <button id="download-md" class="text-button" disabled>
+                  下载 Markdown</button
+                ><button
+                  id="print-report"
+                  class="button primary small"
+                  disabled
+                >
+                  导出 PDF <span>↗</span>
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+        <section class="execution panel">
+          <button
+            id="trace-toggle"
+            class="execution-header"
+            aria-expanded="false"
+          >
+            <span class="execution-title"
+              ><span class="terminal-icon">⌁</span> 执行记录
+              <span id="trace-summary">等待开始任务</span></span
+            ><span class="execution-meta"
+              ><span id="trace-mode">真实工具结果，无隐藏思维链</span
+              ><span id="trace-chevron">⌄</span></span
+            >
+          </button>
+          <div id="trace-list" class="trace-list" hidden></div>
+        </section>
+        <footer class="page-footer">
+          <span
+            >BUILT WITH INTENTION <span class="footer-star">✳</span> ENGINEERED
+            TO EXPLAIN</span
+          ><span>一个 Agent · 可验证的工具 · 可交付的结果</span>
+        </footer>
+      </section>
+      <section id="library-view" class="view" hidden>
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow"><span></span> YOUR DELIVERABLES</div>
+            <h1>每次迭代，都留有记录。</h1>
+            <p>
+              报告保存在这台电脑，任务索引保存在当前浏览器。点击即可继续修订。
+            </p>
+          </div>
+        </div>
+        <div id="library-list" class="library-list"></div>
+      </section>
+      <section id="about-view" class="view" hidden>
+        <div class="page-heading">
+          <div>
+            <div class="eyebrow"><span></span> THE ENGINEERING BEHIND IT</div>
+            <h1>从一次对话，到可靠交付。</h1>
+            <p>一个围绕营养分析与报告生成构建的独立 Agent 工程作品。</p>
+          </div>
+          <span class="project-version">VERSION 0.1</span>
+        </div>
+        <div class="about-hero panel">
+          <div>
+            <span class="eyebrow">WHY THIS PROJECT</span>
+            <h2>把判断交给 Agent，<br />把数值交给代码。</h2>
+            <p>
+              模型选择工具与推进任务，确定性计算负责营养数值。报告发布前核对明细、汇总和来源；失败后保留任务状态，恢复时复用已完成结果。
+            </p>
+            <div class="stack-tags">
+              <span>Python</span><span>Tool Calling</span><span>SSE</span
+              ><span>File Checkpoints</span>
+            </div>
+          </div>
+          <div class="architecture">
+            <div>用户目标与补充信息</div>
+            <span>↓</span>
+            <div class="architecture-agent">
+              Agent 编排 <small>模型模式 / 示例模式</small>
+            </div>
+            <span>↓</span>
+            <div class="tool-grid">
+              <span>饮食取数</span><span>份量修订</span><span>营养计算</span
+              ><span>数据校验</span>
+            </div>
+            <span>↓</span>
+            <div>结构化报告 → Markdown / 打印 PDF</div>
+          </div>
+        </div>
+        <div class="about-cards">
+          <article class="panel">
+            <span>01 / GROUNDED</span>
+            <h3>有依据的输出</h3>
+            <p>
+              每项能量都能追溯到原料、份量和参考值。模型无法覆盖营养计算结果。
+            </p>
+          </article>
+          <article class="panel">
+            <span>02 / RESUMABLE</span>
+            <h3>可恢复的任务</h3>
+            <p>
+              任务与事件逐步落盘。刷新后续接执行记录；报告步骤失败后无需重新分析。
+            </p>
+          </article>
+          <article class="panel">
+            <span>03 / HONEST</span>
+            <h3>明确的能力边界</h3>
+            <p>
+              本页使用合成饮食记录展示工具编排；真实饮食录入与照片识别请返回营养首页。RAG
+              尚未接入。
+            </p>
+          </article>
+        </div>
+        <div class="scope-note">
+          <strong>项目来源与个人贡献</strong>
+          <p>
+            本项目从营养分析和报告交付的工程问题出发，独立编写演示实现。未复制原业务仓库源码、客户资料或商业报告。原业务项目中的团队能力与个人贡献，需要在正式求职材料中分别核实。
+          </p>
+        </div>
+      </section>
+    </main>
+    <dialog id="settings-dialog">
+      <div class="dialog-head">
+        <span class="eyebrow">MODEL CONNECTION</span
+        ><button class="icon-button" id="close-settings" aria-label="关闭设置">
+          ×
+        </button>
+      </div>
+      <h2>连接你的模型</h2>
+      <p id="connection-status">正在读取本地配置…</p>
+      <p>
+        默认无需密钥即可体验示例。真实模式支持兼容 Chat Completions
+        和工具调用的服务。
+      </p>
+      <ol>
+        <li>
+          将项目根目录的 <code>.env.example</code> 复制为 <code>.env</code>。
+        </li>
+        <li>
+          默认已配置阿里云百炼和 <code>qwen3.5-plus</code>，填写
+          <code>LLM_API_KEY</code> 即可；也可修改 <code>LLM_BASE_URL</code> 和
+          <code>LLM_DEFAULT_MODEL_ID</code>。
+        </li>
+        <li>重新启动 <code>python3 run.py</code>，页面将显示“真实模型”。</li>
+      </ol>
+      <div class="settings-note">
+        密钥只保存在服务端，不发送到浏览器。VLM
+        用于营养首页的图片识别。本工程演示页使用合成数据；失败恢复场景固定采用示例编排。
+      </div>
+      <button class="button primary" id="settings-done">知道了</button>
+    </dialog>
+    <div id="toast" role="status" class="toast" hidden></div>
+    <div id="print-root"></div>
+  </body>
+</html>

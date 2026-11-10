@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nutriagent-studio"
+version = "0.2.0"
+description = "Python nutrition agent with multimodal recording and traceable reports"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.setuptools]
+packages = ["nutriagent"]
+
+[tool.setuptools.package-data]
+nutriagent = ["*.json"]

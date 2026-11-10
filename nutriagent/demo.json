@@ -1,0 +1,1352 @@
+{
+  "references": {
+    "rice": {
+      "name": "熟米饭",
+      "kcal": 116,
+      "protein": 2.6,
+      "carbs": 25.9,
+      "fat": 0.3
+    },
+    "chicken": {
+      "name": "鸡胸肉（熟）",
+      "kcal": 165,
+      "protein": 31,
+      "carbs": 0,
+      "fat": 3.6
+    },
+    "broccoli": {
+      "name": "西兰花",
+      "kcal": 34,
+      "protein": 2.8,
+      "carbs": 6.6,
+      "fat": 0.4
+    },
+    "oats": {
+      "name": "燕麦片",
+      "kcal": 379,
+      "protein": 13.2,
+      "carbs": 67.7,
+      "fat": 6.5
+    },
+    "milk": {
+      "name": "牛奶",
+      "kcal": 61,
+      "protein": 3.2,
+      "carbs": 4.8,
+      "fat": 3.3
+    },
+    "egg": {
+      "name": "鸡蛋",
+      "kcal": 143,
+      "protein": 12.6,
+      "carbs": 0.7,
+      "fat": 9.5
+    },
+    "apple": {
+      "name": "苹果",
+      "kcal": 52,
+      "protein": 0.3,
+      "carbs": 13.8,
+      "fat": 0.2
+    },
+    "salmon": {
+      "name": "三文鱼",
+      "kcal": 208,
+      "protein": 20,
+      "carbs": 0,
+      "fat": 13
+    },
+    "potato": {
+      "name": "土豆",
+      "kcal": 77,
+      "protein": 2,
+      "carbs": 17,
+      "fat": 0.1
+    },
+    "oil": {
+      "name": "烹调油",
+      "kcal": 884,
+      "protein": 0,
+      "carbs": 0,
+      "fat": 100
+    }
+  },
+  "scenarios": [
+    {
+      "id": "weekly",
+      "label": "生成三日饮食报告",
+      "prompt": "分析这三天的饮食记录，生成一份带图表和依据的报告。",
+      "description": "取数 → 计算 → 校验 → 报告"
+    },
+    {
+      "id": "clarify",
+      "label": "试试资料不足",
+      "prompt": "午餐吃了一碗米饭，帮我分析并生成报告。",
+      "description": "补充份量后继续执行"
+    },
+    {
+      "id": "recovery",
+      "label": "试试失败恢复",
+      "prompt": "生成三日饮食报告，演示一次报告任务失败后的恢复。",
+      "description": "保留结果，只重试失败步骤"
+    }
+  ],
+  "sourceNote": "项目内合成演示参考表，每 100 g 可食部分；用于验证工具链与换算，不代表实验室测量或个人完整摄入。",
+  "meals": [
+    {
+      "id": "breakfast-0",
+      "date": "2026-10-30",
+      "slot": "早餐",
+      "name": "燕麦牛奶 · 水煮蛋",
+      "items": [
+        {
+          "food": "oats",
+          "grams": 45
+        },
+        {
+          "food": "milk",
+          "grams": 250
+        },
+        {
+          "food": "egg",
+          "grams": 50
+        }
+      ],
+      "origin": "合成记录"
+    },
+    {
+      "id": "lunch-0",
+      "date": "2026-10-30",
+      "slot": "午餐",
+      "name": "鸡胸肉 · 米饭 · 西兰花",
+      "items": [
+        {
+          "food": "rice",
+          "grams": 180
+        },
+        {
+          "food": "chicken",
+          "grams": 130
+        },
+        {
+          "food": "broccoli",
+          "grams": 150
+        },
+        {
+          "food": "oil",
+          "grams": 8
+        }
+      ],
+      "origin": "合成记录"
+    },
+    {
+      "id": "dinner-0",
+      "date": "2026-10-30",
+      "slot": "晚餐",
+      "name": "香煎三文鱼 · 土豆",
+      "items": [
+        {
+          "food": "salmon",
+          "grams": 120
+        },
+        {
+          "food": "potato",
+          "grams": 200
+        },
+        {
+          "food": "broccoli",
+          "grams": 120
+        },
+        {
+          "food": "oil",
+          "grams": 5
+        }
+      ],
+      "origin": "合成记录"
+    },
+    {
+      "id": "snack-0",
+      "date": "2026-10-30",
+      "slot": "加餐",
+      "name": "苹果",
+      "items": [
+        {
+          "food": "apple",
+          "grams": 180
+        }
+      ],
+      "origin": "合成记录"
+    },
+    {
+      "id": "breakfast-1",
+      "date": "2026-10-31",
+      "slot": "早餐",
+      "name": "燕麦牛奶 · 水煮蛋",
+      "items": [
+        {
+          "food": "oats",
+          "grams": 50
+        },
+        {
+          "food": "milk",
+          "grams": 250
+        },
+        {
+          "food": "egg",
+          "grams": 50
+        }
+      ],
+      "origin": "合成记录"
+    },
+    {
+      "id": "lunch-1",
+      "date": "2026-10-31",
+      "slot": "午餐",
+      "name": "鸡胸肉 · 米饭 · 西兰花",
+      "items": [
+        {
+          "food": "rice",
+          "grams": 180
+        },
+        {
+          "food": "chicken",
+          "grams": 140
+        },
+        {
+          "food": "broccoli",
+          "grams": 150
+        },
+        {
+          "food": "oil",
+          "grams": 8
+        }
+      ],
+      "origin": "合成记录"
+    },
+    {
+      "id": "dinner-1",
+      "date": "2026-10-31",
+      "slot": "晚餐",
+      "name": "香煎三文鱼 · 土豆",
+      "items": [
+        {
+          "food": "salmon",
+          "grams": 120
+        },
+        {
+          "food": "potato",
+          "grams": 220
+        },
+        {
+          "food": "broccoli",
+          "grams": 120
+        },
+        {
+          "food": "oil",
+          "grams": 5
+        }
+      ],
+      "origin": "合成记录"
+    },
+    {
+      "id": "snack-1",
+      "date": "2026-10-31",
+      "slot": "加餐",
+      "name": "苹果",
+      "items": [
+        {
+          "food": "apple",
+          "grams": 180
+        }
+      ],
+      "origin": "合成记录"
+    },
+    {
+      "id": "breakfast-2",
+      "date": "2026-11-01",
+      "slot": "早餐",
+      "name": "燕麦牛奶 · 水煮蛋",
+      "items": [
+        {
+          "food": "oats",
+          "grams": 55
+        },
+        {
+          "food": "milk",
+          "grams": 250
+        },
+        {
+          "food": "egg",
+          "grams": 50
+        }
+      ],
+      "origin": "合成记录"
+    },
+    {
+      "id": "lunch-2",
+      "date": "2026-11-01",
+      "slot": "午餐",
+      "name": "鸡胸肉 · 米饭 · 西兰花",
+      "items": [
+        {
+          "food": "rice",
+          "grams": 180
+        },
+        {
+          "food": "chicken",
+          "grams": 150
+        },
+        {
+          "food": "broccoli",
+          "grams": 150
+        },
+        {
+          "food": "oil",
+          "grams": 8
+        }
+      ],
+      "origin": "合成记录"
+    },
+    {
+      "id": "dinner-2",
+      "date": "2026-11-01",
+      "slot": "晚餐",
+      "name": "香煎三文鱼 · 土豆",
+      "items": [
+        {
+          "food": "salmon",
+          "grams": 120
+        },
+        {
+          "food": "potato",
+          "grams": 240
+        },
+        {
+          "food": "broccoli",
+          "grams": 120
+        },
+        {
+          "food": "oil",
+          "grams": 5
+        }
+      ],
+      "origin": "合成记录"
+    },
+    {
+      "id": "snack-2",
+      "date": "2026-11-01",
+      "slot": "加餐",
+      "name": "苹果",
+      "items": [
+        {
+          "food": "apple",
+          "grams": 180
+        }
+      ],
+      "origin": "合成记录"
+    }
+  ],
+  "template": {
+    "title": "三日饮食观察报告",
+    "version": 1,
+    "generatedAt": "2026-11-10T07:31:20.944Z",
+    "analysis": {
+      "rows": [
+        {
+          "id": "breakfast-0",
+          "date": "2026-10-30",
+          "slot": "早餐",
+          "name": "燕麦牛奶 · 水煮蛋",
+          "items": [
+            {
+              "food": "oats",
+              "grams": 45
+            },
+            {
+              "food": "milk",
+              "grams": 250
+            },
+            {
+              "food": "egg",
+              "grams": 50
+            }
+          ],
+          "origin": "合成记录",
+          "values": {
+            "kcal": 394.6,
+            "protein": 20.2,
+            "carbs": 42.8,
+            "fat": 15.9
+          },
+          "evidence": [
+            {
+              "food": "oats",
+              "name": "燕麦片",
+              "grams": 45,
+              "reference": {
+                "name": "燕麦片",
+                "kcal": 379,
+                "protein": 13.2,
+                "carbs": 67.7,
+                "fat": 6.5
+              },
+              "formula": "379 × 45 ÷ 100",
+              "kcal": 170.6
+            },
+            {
+              "food": "milk",
+              "name": "牛奶",
+              "grams": 250,
+              "reference": {
+                "name": "牛奶",
+                "kcal": 61,
+                "protein": 3.2,
+                "carbs": 4.8,
+                "fat": 3.3
+              },
+              "formula": "61 × 250 ÷ 100",
+              "kcal": 152.5
+            },
+            {
+              "food": "egg",
+              "name": "鸡蛋",
+              "grams": 50,
+              "reference": {
+                "name": "鸡蛋",
+                "kcal": 143,
+                "protein": 12.6,
+                "carbs": 0.7,
+                "fat": 9.5
+              },
+              "formula": "143 × 50 ÷ 100",
+              "kcal": 71.5
+            }
+          ]
+        },
+        {
+          "id": "lunch-0",
+          "date": "2026-10-30",
+          "slot": "午餐",
+          "name": "鸡胸肉 · 米饭 · 西兰花",
+          "items": [
+            {
+              "food": "rice",
+              "grams": 180
+            },
+            {
+              "food": "chicken",
+              "grams": 130
+            },
+            {
+              "food": "broccoli",
+              "grams": 150
+            },
+            {
+              "food": "oil",
+              "grams": 8
+            }
+          ],
+          "origin": "合成记录",
+          "values": {
+            "kcal": 545,
+            "protein": 49.2,
+            "carbs": 56.5,
+            "fat": 13.8
+          },
+          "evidence": [
+            {
+              "food": "rice",
+              "name": "熟米饭",
+              "grams": 180,
+              "reference": {
+                "name": "熟米饭",
+                "kcal": 116,
+                "protein": 2.6,
+                "carbs": 25.9,
+                "fat": 0.3
+              },
+              "formula": "116 × 180 ÷ 100",
+              "kcal": 208.8
+            },
+            {
+              "food": "chicken",
+              "name": "鸡胸肉（熟）",
+              "grams": 130,
+              "reference": {
+                "name": "鸡胸肉（熟）",
+                "kcal": 165,
+                "protein": 31,
+                "carbs": 0,
+                "fat": 3.6
+              },
+              "formula": "165 × 130 ÷ 100",
+              "kcal": 214.5
+            },
+            {
+              "food": "broccoli",
+              "name": "西兰花",
+              "grams": 150,
+              "reference": {
+                "name": "西兰花",
+                "kcal": 34,
+                "protein": 2.8,
+                "carbs": 6.6,
+                "fat": 0.4
+              },
+              "formula": "34 × 150 ÷ 100",
+              "kcal": 51
+            },
+            {
+              "food": "oil",
+              "name": "烹调油",
+              "grams": 8,
+              "reference": {
+                "name": "烹调油",
+                "kcal": 884,
+                "protein": 0,
+                "carbs": 0,
+                "fat": 100
+              },
+              "formula": "884 × 8 ÷ 100",
+              "kcal": 70.7
+            }
+          ]
+        },
+        {
+          "id": "dinner-0",
+          "date": "2026-10-30",
+          "slot": "晚餐",
+          "name": "香煎三文鱼 · 土豆",
+          "items": [
+            {
+              "food": "salmon",
+              "grams": 120
+            },
+            {
+              "food": "potato",
+              "grams": 200
+            },
+            {
+              "food": "broccoli",
+              "grams": 120
+            },
+            {
+              "food": "oil",
+              "grams": 5
+            }
+          ],
+          "origin": "合成记录",
+          "values": {
+            "kcal": 488.6,
+            "protein": 31.4,
+            "carbs": 41.9,
+            "fat": 21.3
+          },
+          "evidence": [
+            {
+              "food": "salmon",
+              "name": "三文鱼",
+              "grams": 120,
+              "reference": {
+                "name": "三文鱼",
+                "kcal": 208,
+                "protein": 20,
+                "carbs": 0,
+                "fat": 13
+              },
+              "formula": "208 × 120 ÷ 100",
+              "kcal": 249.6
+            },
+            {
+              "food": "potato",
+              "name": "土豆",
+              "grams": 200,
+              "reference": {
+                "name": "土豆",
+                "kcal": 77,
+                "protein": 2,
+                "carbs": 17,
+                "fat": 0.1
+              },
+              "formula": "77 × 200 ÷ 100",
+              "kcal": 154
+            },
+            {
+              "food": "broccoli",
+              "name": "西兰花",
+              "grams": 120,
+              "reference": {
+                "name": "西兰花",
+                "kcal": 34,
+                "protein": 2.8,
+                "carbs": 6.6,
+                "fat": 0.4
+              },
+              "formula": "34 × 120 ÷ 100",
+              "kcal": 40.8
+            },
+            {
+              "food": "oil",
+              "name": "烹调油",
+              "grams": 5,
+              "reference": {
+                "name": "烹调油",
+                "kcal": 884,
+                "protein": 0,
+                "carbs": 0,
+                "fat": 100
+              },
+              "formula": "884 × 5 ÷ 100",
+              "kcal": 44.2
+            }
+          ]
+        },
+        {
+          "id": "snack-0",
+          "date": "2026-10-30",
+          "slot": "加餐",
+          "name": "苹果",
+          "items": [
+            {
+              "food": "apple",
+              "grams": 180
+            }
+          ],
+          "origin": "合成记录",
+          "values": {
+            "kcal": 93.6,
+            "protein": 0.5,
+            "carbs": 24.8,
+            "fat": 0.4
+          },
+          "evidence": [
+            {
+              "food": "apple",
+              "name": "苹果",
+              "grams": 180,
+              "reference": {
+                "name": "苹果",
+                "kcal": 52,
+                "protein": 0.3,
+                "carbs": 13.8,
+                "fat": 0.2
+              },
+              "formula": "52 × 180 ÷ 100",
+              "kcal": 93.6
+            }
+          ]
+        },
+        {
+          "id": "breakfast-1",
+          "date": "2026-10-31",
+          "slot": "早餐",
+          "name": "燕麦牛奶 · 水煮蛋",
+          "items": [
+            {
+              "food": "oats",
+              "grams": 50
+            },
+            {
+              "food": "milk",
+              "grams": 250
+            },
+            {
+              "food": "egg",
+              "grams": 50
+            }
+          ],
+          "origin": "合成记录",
+          "values": {
+            "kcal": 413.5,
+            "protein": 20.9,
+            "carbs": 46.2,
+            "fat": 16.3
+          },
+          "evidence": [
+            {
+              "food": "oats",
+              "name": "燕麦片",
+              "grams": 50,
+              "reference": {
+                "name": "燕麦片",
+                "kcal": 379,
+                "protein": 13.2,
+                "carbs": 67.7,
+                "fat": 6.5
+              },
+              "formula": "379 × 50 ÷ 100",
+              "kcal": 189.5
+            },
+            {
+              "food": "milk",
+              "name": "牛奶",
+              "grams": 250,
+              "reference": {
+                "name": "牛奶",
+                "kcal": 61,
+                "protein": 3.2,
+                "carbs": 4.8,
+                "fat": 3.3
+              },
+              "formula": "61 × 250 ÷ 100",
+              "kcal": 152.5
+            },
+            {
+              "food": "egg",
+              "name": "鸡蛋",
+              "grams": 50,
+              "reference": {
+                "name": "鸡蛋",
+                "kcal": 143,
+                "protein": 12.6,
+                "carbs": 0.7,
+                "fat": 9.5
+              },
+              "formula": "143 × 50 ÷ 100",
+              "kcal": 71.5
+            }
+          ]
+        },
+        {
+          "id": "lunch-1",
+          "date": "2026-10-31",
+          "slot": "午餐",
+          "name": "鸡胸肉 · 米饭 · 西兰花",
+          "items": [
+            {
+              "food": "rice",
+              "grams": 180
+            },
+            {
+              "food": "chicken",
+              "grams": 140
+            },
+            {
+              "food": "broccoli",
+              "grams": 150
+            },
+            {
+              "food": "oil",
+              "grams": 8
+            }
+          ],
+          "origin": "合成记录",
+          "values": {
+            "kcal": 561.5,
+            "protein": 52.3,
+            "carbs": 56.5,
+            "fat": 14.2
+          },
+          "evidence": [
+            {
+              "food": "rice",
+              "name": "熟米饭",
+              "grams": 180,
+              "reference": {
+                "name": "熟米饭",
+                "kcal": 116,
+                "protein": 2.6,
+                "carbs": 25.9,
+                "fat": 0.3
+              },
+              "formula": "116 × 180 ÷ 100",
+              "kcal": 208.8
+            },
+            {
+              "food": "chicken",
+              "name": "鸡胸肉（熟）",
+              "grams": 140,
+              "reference": {
+                "name": "鸡胸肉（熟）",
+                "kcal": 165,
+                "protein": 31,
+                "carbs": 0,
+                "fat": 3.6
+              },
+              "formula": "165 × 140 ÷ 100",
+              "kcal": 231
+            },
+            {
+              "food": "broccoli",
+              "name": "西兰花",
+              "grams": 150,
+              "reference": {
+                "name": "西兰花",
+                "kcal": 34,
+                "protein": 2.8,
+                "carbs": 6.6,
+                "fat": 0.4
+              },
+              "formula": "34 × 150 ÷ 100",
+              "kcal": 51
+            },
+            {
+              "food": "oil",
+              "name": "烹调油",
+              "grams": 8,
+              "reference": {
+                "name": "烹调油",
+                "kcal": 884,
+                "protein": 0,
+                "carbs": 0,
+                "fat": 100
+              },
+              "formula": "884 × 8 ÷ 100",
+              "kcal": 70.7
+            }
+          ]
+        },
+        {
+          "id": "dinner-1",
+          "date": "2026-10-31",
+          "slot": "晚餐",
+          "name": "香煎三文鱼 · 土豆",
+          "items": [
+            {
+              "food": "salmon",
+              "grams": 120
+            },
+            {
+              "food": "potato",
+              "grams": 220
+            },
+            {
+              "food": "broccoli",
+              "grams": 120
+            },
+            {
+              "food": "oil",
+              "grams": 5
+            }
+          ],
+          "origin": "合成记录",
+          "values": {
+            "kcal": 504,
+            "protein": 31.8,
+            "carbs": 45.3,
+            "fat": 21.3
+          },
+          "evidence": [
+            {
+              "food": "salmon",
+              "name": "三文鱼",
+              "grams": 120,
+              "reference": {
+                "name": "三文鱼",
+                "kcal": 208,
+                "protein": 20,
+                "carbs": 0,
+                "fat": 13
+              },
+              "formula": "208 × 120 ÷ 100",
+              "kcal": 249.6
+            },
+            {
+              "food": "potato",
+              "name": "土豆",
+              "grams": 220,
+              "reference": {
+                "name": "土豆",
+                "kcal": 77,
+                "protein": 2,
+                "carbs": 17,
+                "fat": 0.1
+              },
+              "formula": "77 × 220 ÷ 100",
+              "kcal": 169.4
+            },
+            {
+              "food": "broccoli",
+              "name": "西兰花",
+              "grams": 120,
+              "reference": {
+                "name": "西兰花",
+                "kcal": 34,
+                "protein": 2.8,
+                "carbs": 6.6,
+                "fat": 0.4
+              },
+              "formula": "34 × 120 ÷ 100",
+              "kcal": 40.8
+            },
+            {
+              "food": "oil",
+              "name": "烹调油",
+              "grams": 5,
+              "reference": {
+                "name": "烹调油",
+                "kcal": 884,
+                "protein": 0,
+                "carbs": 0,
+                "fat": 100
+              },
+              "formula": "884 × 5 ÷ 100",
+              "kcal": 44.2
+            }
+          ]
+        },
+        {
+          "id": "snack-1",
+          "date": "2026-10-31",
+          "slot": "加餐",
+          "name": "苹果",
+          "items": [
+            {
+              "food": "apple",
+              "grams": 180
+            }
+          ],
+          "origin": "合成记录",
+          "values": {
+            "kcal": 93.6,
+            "protein": 0.5,
+            "carbs": 24.8,
+            "fat": 0.4
+          },
+          "evidence": [
+            {
+              "food": "apple",
+              "name": "苹果",
+              "grams": 180,
+              "reference": {
+                "name": "苹果",
+                "kcal": 52,
+                "protein": 0.3,
+                "carbs": 13.8,
+                "fat": 0.2
+              },
+              "formula": "52 × 180 ÷ 100",
+              "kcal": 93.6
+            }
+          ]
+        },
+        {
+          "id": "breakfast-2",
+          "date": "2026-11-01",
+          "slot": "早餐",
+          "name": "燕麦牛奶 · 水煮蛋",
+          "items": [
+            {
+              "food": "oats",
+              "grams": 55
+            },
+            {
+              "food": "milk",
+              "grams": 250
+            },
+            {
+              "food": "egg",
+              "grams": 50
+            }
+          ],
+          "origin": "合成记录",
+          "values": {
+            "kcal": 432.5,
+            "protein": 21.6,
+            "carbs": 49.6,
+            "fat": 16.6
+          },
+          "evidence": [
+            {
+              "food": "oats",
+              "name": "燕麦片",
+              "grams": 55,
+              "reference": {
+                "name": "燕麦片",
+                "kcal": 379,
+                "protein": 13.2,
+                "carbs": 67.7,
+                "fat": 6.5
+              },
+              "formula": "379 × 55 ÷ 100",
+              "kcal": 208.5
+            },
+            {
+              "food": "milk",
+              "name": "牛奶",
+              "grams": 250,
+              "reference": {
+                "name": "牛奶",
+                "kcal": 61,
+                "protein": 3.2,
+                "carbs": 4.8,
+                "fat": 3.3
+              },
+              "formula": "61 × 250 ÷ 100",
+              "kcal": 152.5
+            },
+            {
+              "food": "egg",
+              "name": "鸡蛋",
+              "grams": 50,
+              "reference": {
+                "name": "鸡蛋",
+                "kcal": 143,
+                "protein": 12.6,
+                "carbs": 0.7,
+                "fat": 9.5
+              },
+              "formula": "143 × 50 ÷ 100",
+              "kcal": 71.5
+            }
+          ]
+        },
+        {
+          "id": "lunch-2",
+          "date": "2026-11-01",
+          "slot": "午餐",
+          "name": "鸡胸肉 · 米饭 · 西兰花",
+          "items": [
+            {
+              "food": "rice",
+              "grams": 180
+            },
+            {
+              "food": "chicken",
+              "grams": 150
+            },
+            {
+              "food": "broccoli",
+              "grams": 150
+            },
+            {
+              "food": "oil",
+              "grams": 8
+            }
+          ],
+          "origin": "合成记录",
+          "values": {
+            "kcal": 578,
+            "protein": 55.4,
+            "carbs": 56.5,
+            "fat": 14.5
+          },
+          "evidence": [
+            {
+              "food": "rice",
+              "name": "熟米饭",
+              "grams": 180,
+              "reference": {
+                "name": "熟米饭",
+                "kcal": 116,
+                "protein": 2.6,
+                "carbs": 25.9,
+                "fat": 0.3
+              },
+              "formula": "116 × 180 ÷ 100",
+              "kcal": 208.8
+            },
+            {
+              "food": "chicken",
+              "name": "鸡胸肉（熟）",
+              "grams": 150,
+              "reference": {
+                "name": "鸡胸肉（熟）",
+                "kcal": 165,
+                "protein": 31,
+                "carbs": 0,
+                "fat": 3.6
+              },
+              "formula": "165 × 150 ÷ 100",
+              "kcal": 247.5
+            },
+            {
+              "food": "broccoli",
+              "name": "西兰花",
+              "grams": 150,
+              "reference": {
+                "name": "西兰花",
+                "kcal": 34,
+                "protein": 2.8,
+                "carbs": 6.6,
+                "fat": 0.4
+              },
+              "formula": "34 × 150 ÷ 100",
+              "kcal": 51
+            },
+            {
+              "food": "oil",
+              "name": "烹调油",
+              "grams": 8,
+              "reference": {
+                "name": "烹调油",
+                "kcal": 884,
+                "protein": 0,
+                "carbs": 0,
+                "fat": 100
+              },
+              "formula": "884 × 8 ÷ 100",
+              "kcal": 70.7
+            }
+          ]
+        },
+        {
+          "id": "dinner-2",
+          "date": "2026-11-01",
+          "slot": "晚餐",
+          "name": "香煎三文鱼 · 土豆",
+          "items": [
+            {
+              "food": "salmon",
+              "grams": 120
+            },
+            {
+              "food": "potato",
+              "grams": 240
+            },
+            {
+              "food": "broccoli",
+              "grams": 120
+            },
+            {
+              "food": "oil",
+              "grams": 5
+            }
+          ],
+          "origin": "合成记录",
+          "values": {
+            "kcal": 519.4,
+            "protein": 32.2,
+            "carbs": 48.7,
+            "fat": 21.3
+          },
+          "evidence": [
+            {
+              "food": "salmon",
+              "name": "三文鱼",
+              "grams": 120,
+              "reference": {
+                "name": "三文鱼",
+                "kcal": 208,
+                "protein": 20,
+                "carbs": 0,
+                "fat": 13
+              },
+              "formula": "208 × 120 ÷ 100",
+              "kcal": 249.6
+            },
+            {
+              "food": "potato",
+              "name": "土豆",
+              "grams": 240,
+              "reference": {
+                "name": "土豆",
+                "kcal": 77,
+                "protein": 2,
+                "carbs": 17,
+                "fat": 0.1
+              },
+              "formula": "77 × 240 ÷ 100",
+              "kcal": 184.8
+            },
+            {
+              "food": "broccoli",
+              "name": "西兰花",
+              "grams": 120,
+              "reference": {
+                "name": "西兰花",
+                "kcal": 34,
+                "protein": 2.8,
+                "carbs": 6.6,
+                "fat": 0.4
+              },
+              "formula": "34 × 120 ÷ 100",
+              "kcal": 40.8
+            },
+            {
+              "food": "oil",
+              "name": "烹调油",
+              "grams": 5,
+              "reference": {
+                "name": "烹调油",
+                "kcal": 884,
+                "protein": 0,
+                "carbs": 0,
+                "fat": 100
+              },
+              "formula": "884 × 5 ÷ 100",
+              "kcal": 44.2
+            }
+          ]
+        },
+        {
+          "id": "snack-2",
+          "date": "2026-11-01",
+          "slot": "加餐",
+          "name": "苹果",
+          "items": [
+            {
+              "food": "apple",
+              "grams": 180
+            }
+          ],
+          "origin": "合成记录",
+          "values": {
+            "kcal": 93.6,
+            "protein": 0.5,
+            "carbs": 24.8,
+            "fat": 0.4
+          },
+          "evidence": [
+            {
+              "food": "apple",
+              "name": "苹果",
+              "grams": 180,
+              "reference": {
+                "name": "苹果",
+                "kcal": 52,
+                "protein": 0.3,
+                "carbs": 13.8,
+                "fat": 0.2
+              },
+              "formula": "52 × 180 ÷ 100",
+              "kcal": 93.6
+            }
+          ]
+        }
+      ],
+      "days": [
+        {
+          "date": "2026-10-30",
+          "kcal": 1521.8,
+          "protein": 101.3,
+          "carbs": 166.1,
+          "fat": 51.4
+        },
+        {
+          "date": "2026-10-31",
+          "kcal": 1572.6,
+          "protein": 105.5,
+          "carbs": 172.9,
+          "fat": 52.1
+        },
+        {
+          "date": "2026-11-01",
+          "kcal": 1623.5,
+          "protein": 109.6,
+          "carbs": 179.7,
+          "fat": 52.8
+        }
+      ],
+      "totals": {
+        "kcal": 4717.9,
+        "protein": 316.4,
+        "carbs": 518.6,
+        "fat": 156.3
+      },
+      "average": {
+        "kcal": 1572.6,
+        "protein": 105.5,
+        "carbs": 172.9,
+        "fat": 52.1
+      },
+      "sourceNote": "项目内合成演示参考表，每 100 g 可食部分；用于验证工具链与换算，不代表实验室测量或个人完整摄入。"
+    },
+    "validation": {
+      "passed": true,
+      "checks": [
+        "原料与份量有效",
+        "明细与汇总一致",
+        "引用与计算来源完整"
+      ],
+      "note": "校验只证明结构与计算一致，不证明照片识别或营养估算准确率。"
+    },
+    "observations": [
+      {
+        "title": "蛋白质来源有变化",
+        "text": "示例记录包含鸡蛋、牛奶、鸡胸肉和三文鱼。此处描述食物构成，不据此判断个体摄入是否达标。",
+        "evidence": [
+          "breakfast",
+          "lunch",
+          "dinner"
+        ]
+      },
+      {
+        "title": "蔬菜种类较集中",
+        "text": "记录中的蔬菜主要为西兰花。下一次记录可补充实际摄入的其他蔬菜、调味料和烹调油。",
+        "evidence": [
+          "lunch",
+          "dinner"
+        ]
+      }
+    ],
+    "limitations": [
+      "全部输入为合成示例，日期固定，并非你的个人健康数据。",
+      "未记录的食物不等于未进食；没有个体目标，不能判断营养是否充足。",
+      "营养量采用示例参考值换算，不用于诊断、治疗或个体膳食处方。"
+    ]
+  },
+  "tools": [
+    {
+      "name": "get_meal_records",
+      "description": "读取本项目固定日期的三日合成饮食记录。当前不接入真实个人数据。",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "revise_rice_portion",
+      "description": "用户明确要求修订最近一日午餐米饭时使用；只能使用用户指定的实际克数。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "grams": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 2000
+          }
+        },
+        "required": [
+          "grams"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "calculate_nutrition",
+      "description": "按当前记录与示例每100g参考表确定性计算，生成逐项依据。",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "validate_report_data",
+      "description": "核对计算明细、汇总和来源；报告发布的前置条件。",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "generate_report",
+      "description": "使用已校验的分析生成结构化报告，不接受模型编造的营养数值。",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "ask_user",
+      "description": "输入不明确或任务超出当前工具范围时，向用户提一个具体问题并暂停。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}
