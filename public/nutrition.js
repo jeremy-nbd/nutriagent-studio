@@ -105,12 +105,13 @@ function switchView(view) {
   $("#summary-view").hidden = view !== "summary";
   $("#advisor-view").hidden = view !== "advisor";
   $("#admin-view").hidden = view !== "admin";
-  if (view === "advisor") void loadAdvisor();
+  const loading = view === "advisor" ? loadAdvisor() : null;
   if (view === "admin") void loadAdmin();
   $$(".nav").forEach((el) =>
     el.classList.toggle("active", el.dataset.view === view),
   );
   if (view === "summary") void refreshSummary();
+  return loading;
 }
 function mealHTML(meal, actions = true) {
   return `<article class="meal-row" data-record-id="${esc(meal.id)}"><div class="meal-icon">${slotIcon[meal.slot] || "◌"}</div><div class="meal-row-main"><div class="meal-row-heading"><h3>${esc(meal.title)}</h3><span>${num(meal.totals.kcal)} <small>kcal</small></span></div><p>${meal.items.map((i) => `${esc(i.name)} ${i.grams == null ? "重量未知" : `${num(i.grams)}g`}`).join(" · ")}</p><div class="meal-row-meta"><span>${esc(meal.slot)}</span><span>${meal.source === "manual" ? "手动填写" : "营养为 AI 估算"}</span>${actions ? `${meal.source === "manual" ? "" : `<button data-edit="${esc(meal.id)}">修改份量</button>`}<button data-consult-date="${esc(meal.date)}">营养师解读</button><button data-delete="${esc(meal.id)}" data-revision="${meal.revision}">移除</button>` : ""}</div></div></article>`;
@@ -191,6 +192,7 @@ function clearImage() {
   state.image = null;
   $("#preview-image").removeAttribute("src");
   $("#food-image").value = "";
+  $("#camera-image").value = "";
   $("#image-preview").hidden = true;
   $("#upload-zone").hidden = false;
   state.requestId = null;
@@ -373,11 +375,7 @@ async function refreshSummary() {
   state.stats = null;
   $("#generate-summary").disabled = true;
   showError("#summary-error", "");
-  $("#summary-content").innerHTML = empty(
-    "整理这段时间的记录",
-    "正在读取已确认的饮食…",
-    true,
-  );
+  $("#summary-hint").textContent = "正在读取已确认的饮食…";
   try {
     const stats = await api(
       `/api/nutrition/overview?date=${date}&period=${state.period}`,
@@ -419,28 +417,13 @@ async function refreshSummary() {
           )
           .join("")}</div>`
       : empty("还没有可汇总的记录", "先记录一餐，确认保存后再来查看。", true);
-    $("#summary-content").innerHTML = stats.mealCount
-      ? empty(
-          "看看这段时间的饮食特点",
-          "点击“生成总结”，AI 会基于已有食物记录给出观察与建议。",
-          true,
-        )
-      : empty(
-          "有记录，才能有总结",
-          "这段时间暂无已确认饮食，不会生成虚构的营养分析。",
-          true,
-        );
-    $("#generate-summary").disabled =
-      !stats.mealCount || !state.config.textReady;
-    $("#generate-summary").textContent = "生成总结 ↗";
+    $('#summary-hint').textContent = stats.mealCount ? '带上所选日 / 周的记录，到营养师对话中生成总结。' : '这段时间还没有已确认的饮食，记录后即可总结。';
+    $('#generate-summary').disabled = !stats.mealCount || !state.config.advisorReady;
+
   } catch (error) {
     if (epoch === state.summaryEpoch) {
       showError("#summary-error", error.message);
-      $("#summary-content").innerHTML = empty(
-        "读取记录失败",
-        "请稍后重新选择日期。",
-        true,
-      );
+      $('#summary-hint').textContent = '读取记录失败，请稍后重试。';
     }
   }
 }
@@ -459,67 +442,32 @@ function renderChart(stats) {
   }).join("") + (weight && stats.days.some(d => d.unknownPortions) ? '<p class="chart-note">* 仅包含已知重量；未知份量未按 0 克计算。</p>' : "");
 }
 async function generateSummary() {
-  if (state.summaryBusy || !state.stats?.mealCount) return;
-  const epoch = state.summaryEpoch;
-  const date = $("#summary-date").value;
-  const period = state.period;
-  state.summaryBusy = true;
-  $("#generate-summary").disabled = true;
-  showError("#summary-error", "");
-  $("#summary-content").innerHTML =
-    '<div class="summary-loading">✳ 正在阅读这段时间的饮食记录，整理营养特点与建议…</div>';
+  if (state.summaryBusy || !state.stats?.mealCount || !state.config.advisorReady) return;
+  if (consultController) { switchView('advisor'); toast('营养师正在回答，请等本次完成后再生成总结。'); return; }
+  const date = $('#summary-date').value, period = state.period;
+  state.summaryBusy = true; $('#generate-summary').disabled = true;
   try {
-    const data = await send("/api/nutrition/summary", { date, period });
-    if (epoch !== state.summaryEpoch) return;
-    state.stats = data.stats;
-    renderAISummary(data);
-    $("#generate-summary").textContent = "再次查看总结 ↗";
-  } catch (error) {
-    if (epoch === state.summaryEpoch) {
-      showError("#summary-error", error.message);
-      $("#summary-content").innerHTML = empty(
-        "这次总结没有完成",
-        "饮食记录和统计仍然保留，可以重新生成。",
-        true,
-      );
-    }
-  } finally {
-    if (epoch === state.summaryEpoch) {
-      state.summaryBusy = false;
-      $("#generate-summary").disabled = !state.stats?.mealCount;
-    }
-  }
-}
-function renderAISummary(data) {
-  if (!data.analysis) {
-    $("#summary-content").innerHTML = empty("暂无可用总结", data.reason, true);
-    return;
-  }
-  const a = data.analysis;
-  $("#summary-content").innerHTML =
-    `<p class="ai-overview">${esc(a.overview)}</p>${a.observations
-      .map(
-        (o, i) =>
-          `<article class="observation"><h3><span>0${i + 1}</span>${esc(o.title)}</h3><p>${esc(o.text)}</p><div class="evidence-links">${o.recordIds
-            .map((id) => data.stats.records.find((r) => r.id === id))
-            .filter(Boolean)
-            .map((r) => `<span>${r.date.slice(5)} · ${esc(r.slot)}</span>`)
-            .join("")}</div></article>`,
-      )
-      .join(
-        "",
-      )}${a.suggestions.length ? `<div class="suggestions-box"><h3>下一餐，可以试试</h3><ul>${a.suggestions.map((s) => `<li>${esc(s)}</li>`).join("")}</ul></div>` : ""}<div class="analysis-limitations">${a.limitations.map((l) => `<p>${esc(l)}</p>`).join("")}<p>由 ${esc(a.model)} 生成 · 依据 ${data.stats.mealCount} 条确认记录</p></div>`;
+    const ready = await switchView('advisor');
+    if (!ready) return;
+    $('#consult-date').value = date; $('#consult-period').value = period; updateChatRange();
+    continueChat = false; conversationId = crypto.randomUUID();
+    $('#consult-history').innerHTML = '';
+    $('#consult-question').value = `请总结 ${date}${period === 'week' ? ' 所在周（周一至周日）' : ' 当天'}的饮食和营养，看看热量、三大营养素及搭配情况，并建议接下来怎么吃。`;
+    resizeComposer(); $('#consult-form').requestSubmit();
+  } finally { state.summaryBusy = false; $('#generate-summary').disabled = !state.stats?.mealCount || !state.config.advisorReady; }
 }
 
 $("#meal-form").addEventListener("submit", analyze);
-$("#food-image").addEventListener("change", async (event) => {
+$$("#food-image,#camera-image").forEach(input => input.addEventListener("change", async (event) => {
   if (event.target.files[0])
     try {
       await loadImage(event.target.files[0]);
     } catch (error) {
       showError("#form-error", error.message);
     }
-});
+}));
+$("#take-photo").addEventListener("click", () => $("#camera-image").click());
+$("#choose-photo").addEventListener("click", () => $("#food-image").click());
 $("#remove-image").addEventListener("click", clearImage);
 $("#upload-zone").addEventListener("dragover", (e) => {
   e.preventDefault();
@@ -566,6 +514,7 @@ document.addEventListener("click", async (e) => {
   if (nav) switchView(nav.dataset.view);
   const example = e.target.closest("[data-example]");
   if (example) {
+    $("#meal-text-details").open = true;
     $("#meal-text").value = example.dataset.example;
     $("#meal-slot").value = example.textContent === "早餐" ? "早餐" : "午餐";
     $("#meal-text").focus();
@@ -584,7 +533,7 @@ document.addEventListener("click", async (e) => {
     $("#consult-period").value = "day";
     const record = state.day?.records.find(r => r.date === consultMeal.dataset.consultDate && r.id === consultMeal.closest("[data-record-id]").dataset.recordId);
     $("#consult-question").value = `请结合当天记录，解读${record?.slot || "这餐"}的${record?.title || "饮食"}，建议下一餐怎么搭配。`;
-    switchView("advisor");
+    updateChatRange(); resizeComposer(); switchView("advisor");
   }
   const half = e.target.closest("[data-halve]");
   if (half) { const input = $(`[data-grams="${half.dataset.halve}"]`); if (Number(input.value) > 0) { input.value = Math.round(Number(input.value) * 5) / 10; recalculateDraft(); } }
@@ -601,6 +550,7 @@ document.addEventListener("click", async (e) => {
     rememberDraft(null);
     $("#draft-panel").hidden = true;
     void refreshDrafts();
+    $("#meal-text-details").open = true;
     $("#meal-text").focus();
   }
 });
@@ -623,10 +573,10 @@ async function boot() {
       : "等待配置 API";
     $("#connection").classList.toggle("offline", !c.textReady);
     $("#today-display").textContent = c.today.slice(5).replace("-", " / ");
-    $("#today-label").textContent = `${c.today.slice(0, 4)} · TODAY`;
+    $("#today-label").textContent = `${c.today.slice(0, 4)} · 今日`;
     $("#meal-date").value = c.today;
     $("#summary-date").value = c.today;
-    $("#consult-date").value = c.today; $("#admin-date").value = c.today; $("#memory-start").value = c.today;
+    $("#consult-date").value = c.today; $("#admin-date").value = c.today; $("#memory-start").value = c.today; updateChatRange();
     $("#ask-advisor").disabled = !c.advisorReady;
     const hour = Number(
       new Intl.DateTimeFormat("en-GB", {
@@ -699,7 +649,7 @@ $("#password-form").addEventListener("submit", async event => {
 window.addEventListener("pageshow", event => { if (event.persisted) location.reload(); });
 void boot();
 
-let memory = {revision: 0, entries: []}, editingMemory = null, advisorLoaded = false, continueChat = true, consultController = null, conversationId = null, conversationHistory = [];
+let memory = {revision: 0, entries: []}, editingMemory = null, advisorLoaded = false, advisorLoading = null, continueChat = true, consultController = null, conversationId = null, conversationHistory = [];
 function sourceHTML(source) {
   let url = '';
   if (source.url?.startsWith('/api/rag/page?')) url = basePath + source.url.replace('/api/rag/page?', '/api/nutrition/page?');
@@ -710,7 +660,9 @@ function answerHTML(result) {
   return `<div class="answer-text">${esc(result.answer)}</div>${result.sources?.length ? `<details class="sources"><summary>数据与参考来源 · ${result.sources.length}</summary>${result.sources.map(sourceHTML).join('')}</details>` : ''}`;
 }
 async function loadAdvisor() {
-  if (advisorLoaded) return;
+  if (advisorLoaded) return true;
+  if (advisorLoading) return advisorLoading;
+  advisorLoading = (async () => {
   try {
     const [m, history] = await Promise.all([api('/api/nutrition/memory'), api('/api/nutrition/consultations')]);
     memory = m; conversationHistory = history; renderMemory(); renderProfileConversations();
@@ -720,13 +672,18 @@ async function loadAdvisor() {
     scrollChat();
     advisorLoaded = true;
     if (state.config.advisorReady) {
-      const library = await api('/api/nutrition/library');
+      void api('/api/nutrition/library').then(library => {
       $('#library-status').innerHTML = `<p class="subtle">${library.ready ? `已连接 · ${library.documents.length} 份资料 / ${library.chunks} 个片段` : '知识库尚未完成建库'}</p>${library.documents.map(d => `<p>${esc(d.name)} <small>${d.pages} 页</small></p>`).join('')}`;
+      }).catch(e => { $('#library-status').textContent = e.message; });
     } else $('#library-status').textContent = '营养师知识服务尚未连接，请联系管理员。';
-  } catch (e) { toast(e.message); }
+    return true;
+  } catch (e) { toast(e.message); return false; }
+  finally { advisorLoading = null; }
+  })();
+  return advisorLoading;
 }
 function welcomeHTML() {
-  return '<div class="chat-welcome"><span>✳</span><h3>你好，今天想聊怎么吃？</h3><p>可以问营养问题，也可以告诉我你的喜好和忌口。<br>我会结合你的记录，陪你慢慢调整饮食。</p></div>';
+  return '<div class="chat-welcome"><span>✳</span><h3>今天，想怎么吃？</h3><p>聊聊营养、搭配，或你喜欢的食物。<br>我会带上你的饮食记录，一起想办法。</p></div>';
 }
 function chatTurnHTML(question,result,wrap=true) {
   return `${wrap ? '<article class="consult-turn">' : ''}<div class="chat-message user-message"><small>你</small><div class="question-text">${esc(question)}</div></div><div class="chat-message assistant-message"><small>✳ 营养师</small>${answerHTML(result)}</div>${wrap ? '</article>' : ''}`;
@@ -737,7 +694,7 @@ function renderProfileConversations() {
   $('#profile-conversations').innerHTML = conversationHistory.slice().reverse().map(h => `<details><summary>${esc(h.createdAt.slice(0,10))} · ${esc(h.question)}</summary>${answerHTML(h.result)}</details>`).join('') || '<p class="subtle">从第一条消息开始，后续可以继续聊。</p>';
 }
 function renderMemory() {
-  $('#profile-context-status').textContent = memory.entries.length ? `已记下 ${memory.entries.length} 条个人资料 · 对话自动保存` : '对话会保存到你的个人上下文';
+  $('#profile-context-status').textContent = memory.entries.length ? `记住了 ${memory.entries.length} 条饮食偏好与资料` : '对话与个人资料自动保存';
   $('#memory-list').innerHTML = memory.entries.map(e => `<article class="memory-entry"><strong>${esc(e.content)}</strong><small>${({preference:'偏好',goal:'目标',restriction:'限制'})[e.kind]} · ${e.status === 'ended' ? '已结束' : e.status === 'review' || e.kind === 'restriction' && e.validUntil && e.validUntil < state.config.today ? '待确认' : e.validFrom > state.config.today ? '尚未生效' : '已记录'} · ${e.sourceText?.startsWith("来自营养师对话：") ? "来自对话 · " : "手动记录 · "}${esc(e.validFrom)}${e.validUntil ? ' 至 ' + esc(e.validUntil) : ''}</small><div><button data-memory-edit="${e.id}">修改</button>${e.status !== 'ended' ? `<button data-memory-end="${e.id}">明确结束</button>` : ''}<button data-memory-delete="${e.id}">删除</button></div></article>`).join('') || '<p class="subtle">还没有饮食记忆，按需填写即可。</p>';
 }
 async function saveMemory(entries) {
@@ -764,9 +721,9 @@ document.addEventListener('click', async event => {
       catch(e) { toast(e.message); }
     }
   }
-  const quick = event.target.closest('[data-question]'); if (quick) $('#consult-question').value = quick.dataset.question;
+  const quick = event.target.closest('[data-question]'); if (quick) { $('#consult-question').value = quick.dataset.question; resizeComposer(); $('#consult-question').focus(); }
 });
-$('#new-consult').addEventListener('click', () => { if (consultController) return; continueChat = false; conversationId = crypto.randomUUID(); $('#consult-history').innerHTML = welcomeHTML(); $('#consult-question').value = ''; toast('已开启新对话，个人资料仍会保留。'); });
+$('#new-consult').addEventListener('click', () => { if (consultController) return; continueChat = false; conversationId = crypto.randomUUID(); $('#consult-history').innerHTML = welcomeHTML(); $('#consult-question').value = ''; resizeComposer(); toast('已开启新对话，个人资料仍会保留。'); });
 $('#cancel-consult').addEventListener('click', () => consultController?.abort());
 $('#consult-form').addEventListener('submit', async event => {
   event.preventDefault(); if (consultController) return;
@@ -802,7 +759,7 @@ $('#consult-form').addEventListener('submit', async event => {
       }
     }
     if (!completed) throw new Error('回答中断，请重新提问。');
-    $('#consult-question').value = '';
+    $('#consult-question').value = ''; resizeComposer();
     conversationHistory = await api('/api/nutrition/consultations'); renderProfileConversations();
   } catch(e) {
     const message = e.name === 'AbortError' ? completed ? '回答已保存，已停止后续资料整理。' : '已停止生成；当前显示内容未完成。' : e.message;
@@ -834,3 +791,19 @@ $('#close-profile').addEventListener('click', () => $('#profile-dialog').close()
 $('#consult-question').addEventListener('keydown', event => {
   if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && window.matchMedia('(min-width:761px)').matches) { event.preventDefault(); if (!consultController && $('#consult-question').value.trim()) $('#consult-form').requestSubmit(); }
 });
+
+function resizeComposer() {
+  const input = $('#consult-question');
+  input.style.height = 'auto';
+  input.style.height = Math.min(160, Math.max(48, input.scrollHeight)) + 'px';
+}
+function updateChatRange() {
+  const date = $('#consult-date').value;
+  $('#chat-range-label').textContent = $('#consult-period').value === 'week' ? (date === state.config?.today ? '本周饮食' : date.slice(5).replace('-', '/') + ' 所在周') : (date === state.config?.today ? '今日饮食' : date.slice(5).replace('-', '/') + ' 饮食');
+}
+$('#consult-question').addEventListener('input', resizeComposer);
+$('#chat-record-toggle').addEventListener('click', () => {
+  const panel = $('#chat-context-panel'); panel.hidden = !panel.hidden;
+  $('#chat-record-toggle').setAttribute('aria-expanded', String(!panel.hidden));
+});
+['#consult-date','#consult-period'].forEach(id => $(id).addEventListener('change', updateChatRange));

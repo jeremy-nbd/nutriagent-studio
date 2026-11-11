@@ -1649,39 +1649,80 @@ dialog > .button {
 }
 .halve-button { font-size:11px; padding:5px 7px; margin-top:6px; background:var(--peach); border:0; border-radius:4px; color:var(--accent); }
 
-/* Nutrition chat: a continuous transcript with account-owned profile context. */
-.advisor-mode main { padding-top:24px; }
+/* Photo-first meal capture. */
+.upload-zone { padding:28px 18px 20px; border-style:solid; border-color:#e6ded1; border-radius:16px; background:#f7f5ee; cursor:default; gap:10px; }
+.photo-hero-icon { width:42px; height:42px; color:var(--accent); margin-bottom:5px; }
+.upload-zone strong { font-size:18px; font-weight:600; color:var(--ink); }
+.upload-zone > span:not(.upload-icon) { font-size:12px; text-align:center; line-height:1.6; }
+.photo-actions { display:flex; gap:10px; margin:8px 0 3px; width:100%; max-width:340px; }
+.photo-actions .button { flex:1; justify-content:center; border-radius:10px; min-height:46px; padding:10px 14px; font-size:13px; }
+.text-supplement { margin:16px 0 0; border:1px solid var(--line); border-radius:10px; padding:0 14px; }
+.text-supplement > summary { min-height:50px; padding:16px 0; cursor:pointer; color:var(--ink); font-size:12px; }
+.text-supplement > summary span { color:var(--muted); font-size:10px; margin-left:6px; }
+.text-supplement + .analyze-button { margin-top:16px; }
+.text-supplement[open] { padding-bottom:12px; }
+.text-supplement .text-label { margin-top:6px; }
+.text-supplement textarea { min-height:100px; }
+.summary-ai-action { display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px; margin:24px 0; }
+.summary-ai-action .button { border-radius:12px; min-height:48px; }
+.summary-ai-action p { color:var(--muted); font-size:12px; margin:0; line-height:1.7; }
+.summary-layout { display:block; }
+/* A quiet transcript and one rounded composer, with the familiar chat hierarchy. */
+body.advisor-mode:not(.login-page) { padding-bottom:0; }
+body.advisor-mode { background:#fff; color:#262626; }
+.advisor-mode .app-header { background:#fff; border-color:#f0f0f0; }
+.advisor-mode main { padding:0; max-width:none; }
 .advisor-mode footer { display:none; }
-.advisor-layout { display:block; max-width:880px; margin:0 auto; }
-.advisor-panel { display:grid; grid-template-rows:auto auto minmax(0,1fr) auto; height:calc(100dvh - 145px); min-height:520px; }
-.chat-heading { display:flex; align-items:center; padding:18px 24px; gap:12px; border-bottom:1px solid var(--line); }
-.advisor-avatar { width:40px; height:40px; border-radius:14px; display:grid; place-items:center; background:var(--green); color:white; font-size:22px; }
-.chat-heading h2 { font-size:17px; margin:0; }
-.chat-heading p { margin:5px 0 0; font-size:11px; color:var(--muted); }
-.chat-heading > div:nth-child(2) { flex:1; }
-.chat-heading button { min-height:40px; }
-.chat-record-context { border-bottom:1px solid var(--line); background:#f9f8f3; }
-.chat-record-context > summary { padding:10px 24px; color:var(--muted); cursor:pointer; font-size:12px; }
-.chat-record-context .advisor-meta { padding-bottom:14px; }
-.consult-history { max-height:none; min-height:0; padding:24px; overscroll-behavior:contain; scroll-behavior:smooth; }
-.chat-message { display:flex; flex-direction:column; align-items:flex-start; margin:0 0 20px; }
-.chat-message > small { font-size:11px; color:var(--muted); margin:0 0 7px 4px; }
-.user-message { align-items:flex-end; margin-left:32px; }
-.user-message .question-text { background:#e7ebdf; max-width:90%; border-radius:16px 16px 3px 16px; margin:0; line-height:1.7; padding:12px 16px; }
-.assistant-message { margin-right:16px; }
-.assistant-message .answer-text { background:#f8f5ef; padding:16px; border-radius:3px 16px 16px 16px; width:100%; }
-.assistant-message .sources { width:100%; padding-left:12px; }
-.chat-welcome { padding:32px 8px; text-align:center; }
-.chat-welcome>span { width:48px; height:48px; display:grid; place-items:center; margin:auto; font-size:28px; color:var(--green); background:#edf0e7; border-radius:18px; }
-.chat-welcome h3 { font-family:var(--serif); font-size:23px; font-weight:500; }
-.chat-welcome p { font-size:13px; color:var(--muted); line-height:1.9; }
-.consult-form { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; background:var(--paper); padding:14px 22px; }
-.consult-form textarea { grid-column:1; resize:none; padding:12px; min-height:68px; max-height:120px; border-radius:14px; }
-.consult-form #ask-advisor { grid-column:2; grid-row:1; align-self:end; min-height:46px; }
-.consult-form .quick-questions { grid-column:1/-1; grid-row:2; margin:0; }
-.consult-form .privacy-note,.consult-form .error-box { grid-column:1/-1; margin:0; }
-.consult-form #cancel-consult { grid-column:1/-1; }
-.profile-save-note { color:var(--muted); font-size:11px; }
+.advisor-layout { display:block; max-width:860px; margin:0 auto; }
+.advisor-panel { display:grid; grid-template-rows:auto minmax(0,1fr) auto; height:calc(100dvh - 90px); min-height:0; border:0; border-radius:0; box-shadow:none; background:#fff; overflow:hidden; }
+.chat-heading { display:flex; align-items:center; padding:22px 28px 14px; gap:14px; }
+.chat-heading-title { flex:1; min-width:0; }
+.chat-heading h2 { font-size:18px; font-weight:600; margin:0; display:flex; align-items:center; gap:8px; }
+.chat-status-dot { width:6px; height:6px; background:#829675; border-radius:50%; }
+.chat-heading p { margin:6px 0 0; color:#999; font-size:11px; }
+.chat-heading .text-button { color:#737373; font-size:12px; min-height:44px; padding:8px; white-space:nowrap; }
+.chat-icon-button { width:40px; height:40px; display:grid; place-items:center; border:0; background:transparent; border-radius:50%; }
+.chat-icon-button:hover { background:#f5f5f5; }
+.chat-icon-button svg { width:21px; height:21px; }
+.consult-history { max-height:none; min-height:0; padding:30px 28px 16px; overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; scroll-behavior:smooth; }
+.consult-history:has(.chat-welcome) { display:flex; justify-content:center; align-items:center; }
+.consult-turn { margin:0 0 34px; }
+.chat-message { display:flex; flex-direction:column; align-items:flex-start; margin:0 0 24px; }
+.chat-message > small { color:#929292; font-size:11px; margin:0 0 10px; }
+.user-message { align-items:flex-end; margin-left:40px; }
+.user-message > small { display:none; }
+.user-message .question-text { background:#f3f3f3; color:#292929; max-width:92%; border-radius:22px; padding:12px 18px; margin:0; font-size:15px; line-height:1.7; overflow-wrap:anywhere; }
+.assistant-message { margin-right:12px; }
+.assistant-message > small { font-size:12px; color:#666; }
+.assistant-message .answer-text { background:transparent; padding:0; border-radius:0; width:100%; font-size:15px; line-height:1.9; color:#303030; }
+.assistant-message .sources { width:100%; border-top:1px solid #f0f0f0; padding-top:8px; }
+.chat-welcome { text-align:center; padding:12px 0 54px; }
+.chat-welcome > span { display:inline-grid; place-items:center; width:52px; height:52px; color:#78846e; background:#f5f7f2; border-radius:50%; font-size:30px; margin-bottom:16px; }
+.chat-welcome h3 { font-family:var(--sans); font-size:27px; font-weight:600; letter-spacing:-.6px; margin:0 0 14px; }
+.chat-welcome p { color:#999; font-size:13px; line-height:1.9; margin:0; }
+.consult-form { display:block; padding:0 28px 15px; border:0; background:#fff; }
+.consult-form .quick-questions { display:flex; justify-content:center; flex-wrap:wrap; gap:8px; margin:0 0 16px; }
+.consult-form .quick-questions button { min-height:36px; padding:7px 13px; border:1px solid #eaeaea; color:#747474; background:#fff; font-size:12px; border-radius:20px; }
+.consult-form .quick-questions button:hover { background:#f7f7f7; }
+.chat-composer { background:#f7f7f7; border:1px solid #e9e9e9; border-radius:25px; padding:11px 12px 10px; box-shadow:0 2px 8px #00000004; transition:border-color .15s; }
+.chat-composer:focus-within { border-color:#c9c9c9; }
+.consult-form textarea { display:block; width:100%; min-height:48px; max-height:160px; resize:none; padding:10px 8px; border:0; border-radius:0; box-shadow:none; background:transparent; color:#262626; font-size:16px; line-height:1.6; outline:none; }
+.consult-form textarea::placeholder { color:#9b9b9b; }
+.composer-toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:0 2px; }
+#chat-record-toggle { display:flex; align-items:center; gap:7px; min-height:36px; padding:5px 9px; border:0; border-radius:18px; background:transparent; font-size:11px; color:#868686; }
+#chat-record-toggle:hover,#chat-record-toggle[aria-expanded=true] { background:#eaeaea; color:#414141; }
+#chat-record-toggle svg { width:16px; height:16px; }
+.composer-actions { display:flex; align-items:center; gap:8px; }
+.chat-send { display:grid; place-items:center; width:36px; height:36px; min-height:36px; padding:0; border:0; border-radius:50%; background:#252525; color:#fff; }
+.chat-send svg { width:21px; height:21px; }
+#ask-advisor:disabled { display:none; }
+.composer-actions:has(#cancel-consult[hidden]) #ask-advisor:disabled { display:grid; }
+.consult-form .privacy-note { margin:10px 0 0; font-size:10px; text-align:center; color:#a3a3a3; line-height:1.5; }
+.consult-form .error-box { margin:8px 0 0; }
+#chat-context-panel { display:flex; gap:12px; background:#f7f7f7; border-radius:14px; padding:14px; margin:0 0 12px; }
+#chat-context-panel label { flex:1; min-width:0; color:#777; font-size:11px; }
+#chat-context-panel input,#chat-context-panel select { width:100%; background:#fff; border-color:#e5e5e5; }
+.profile-save-note { color:#999; font-size:11px; }
 #profile-dialog { width:min(600px,calc(100vw - 24px)); padding:24px; }
 #profile-dialog>.subtle { line-height:1.8; }
 #profile-dialog .panel { padding:18px; border-radius:12px; box-shadow:none; }
@@ -1691,21 +1732,36 @@ dialog > .button {
 .profile-conversations details summary { font-size:12px; cursor:pointer; line-height:1.8; }
 #conversation-count { display:block; font-size:11px; color:var(--muted); margin-top:7px; }
 @media(max-width:760px) {
-  .advisor-mode main { padding:10px 10px 0; }
-  .advisor-panel { height:calc(100dvh - 150px - env(safe-area-inset-bottom)); min-height:390px; border-radius:16px; }
-  .chat-heading { padding:12px 14px; gap:8px; }
+  .advisor-mode main { padding:0; }
+  .advisor-mode .app-header { height:64px; min-height:64px; flex-wrap:nowrap; padding:0 16px; }
+  .advisor-mode .app-header nav { background:#fff; border-color:#f0f0f0; box-shadow:none; }
+  .advisor-panel { height:calc(100dvh - 129px - env(safe-area-inset-bottom)); }
+  .chat-heading { padding:12px 18px 10px; gap:8px; }
+  .chat-heading h2 { font-size:17px; }
   .chat-heading p { font-size:10px; }
-  .chat-heading button { font-size:11px; }
-  .chat-heading #new-consult { font-size:22px; min-width:30px; }
-  .advisor-avatar { width:32px; height:36px; border-radius:11px; }
-  .chat-record-context>summary { padding:9px 16px; }
-  .consult-history { padding:16px 12px; }
-  .consult-form { padding:12px; gap:8px; }
-  .consult-form .primary { width:auto; padding:10px 13px; }
+  .chat-heading .text-button { font-size:11px; }
+  .chat-icon-button { width:34px; }
+  .consult-history { padding:24px 20px 8px; }
+  .chat-welcome h3 { font-size:25px; }
+  .chat-welcome p { font-size:12px; }
+  .consult-form { padding:0 12px 12px; }
+  .consult-form .quick-questions { flex-wrap:nowrap; gap:6px; margin-bottom:12px; }
+  .consult-form .quick-questions button { font-size:11px; white-space:nowrap; padding:7px 12px; }
   .consult-form .privacy-note { font-size:9px; }
-  .consult-form textarea { min-height:64px; }
-  .quick-questions { flex-wrap:nowrap; overflow-x:auto; }
-  .quick-questions button { white-space:nowrap; min-height:32px; padding:6px 10px; font-size:11px; }
-  .assistant-message { margin-right:8px; }
+  .user-message { margin-left:20px; }
+  .user-message .question-text { max-width:95%; font-size:14px; }
+  .assistant-message { margin-right:0; }
+  .assistant-message .answer-text { font-size:14px; }
   #profile-dialog { padding:18px; }
+  .summary-ai-action { flex-direction:column; align-items:stretch; gap:9px; }
+  .summary-ai-action .button { justify-content:center; }
+  .summary-ai-action p { text-align:center; font-size:11px; }
 }
+@media(max-height:600px) and (max-width:760px) {
+  .chat-heading p,.consult-form .quick-questions,.consult-form .privacy-note { display:none; }
+  .chat-heading { padding-top:5px; padding-bottom:5px; }
+  .consult-form { padding-bottom:6px; }
+}
+
+.login-brand { display:flex; align-items:center; gap:12px; margin-bottom:24px; color:var(--accent); font-size:18px; font-weight:600; }
+.login-card h1 { margin-bottom:28px; }

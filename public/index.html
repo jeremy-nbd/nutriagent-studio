@@ -7,7 +7,7 @@
       name="description"
       content="拍下或记下每一餐，识别食物、份量和营养，回顾每天与每周的饮食。"
     />
-    <title>NutriAgent · 记好每一餐</title>
+    <title>好好吃饭 · 记好每一餐</title>
     <link rel="icon" href="/favicon.svg" />
     <link rel="stylesheet" href="/nutrition.css" />
     <script type="module" src="/nutrition.js"></script>
@@ -16,7 +16,7 @@
     <header class="app-header">
       <a class="brand" href="/"
         ><img src="/favicon.svg" width="34" height="34" alt="" /><span
-          >NutriAgent<small>YOUR DAILY NUTRITION</small></span
+          >好好吃饭<small>家人的饮食日记</small></span
         ></a
       >
       <nav aria-label="功能导航">
@@ -37,14 +37,14 @@
       <section id="record-view">
         <div class="page-heading">
           <div>
-            <div class="eyebrow">A LITTLE RECORD, A CLEARER PICTURE</div>
+            <div class="eyebrow">把每一餐，记在心上</div>
             <h1>吃了什么，记下来就好<span>。</span></h1>
             <p>
-              拍张照片，或者说说这一餐。食物、份量和营养，交给 AI 帮你整理。
+              拍下这一餐，AI 帮你整理食物、份量和营养。
             </p>
           </div>
           <div class="date-stamp">
-            <span id="today-label">TODAY</span
+            <span id="today-label">今日</span
             ><strong id="today-display">—</strong>
           </div>
         </div>
@@ -52,7 +52,7 @@
           <section class="panel intake">
             <div class="panel-heading">
               <h2>记录一餐</h2>
-              <span class="subtle">照片 / 文字 / 手动填写</span>
+              <span class="subtle">拍照，核对，记下来</span>
             </div>
             <form id="meal-form">
               <div class="meal-meta">
@@ -66,16 +66,14 @@
                   </select></label
                 >
               </div>
-              <label class="upload-zone" id="upload-zone" for="food-image"
-                ><input
-                  type="file"
-                  id="food-image"
-                  accept="image/jpeg,image/png,image/webp"
-                /><span class="upload-icon">⌁</span
-                ><strong>放一张这餐的照片</strong
-                ><span>点击选择，或拖入图片</span
-                ><small>JPG / PNG / WebP · 最大 6 MB</small></label
-              >
+              <div class="upload-zone" id="upload-zone">
+                <svg class="photo-hero-icon" viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M16 13l3-5h10l3 5h7a4 4 0 014 4v21a4 4 0 01-4 4H9a4 4 0 01-4-4V17a4 4 0 014-4h7z" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="27" r="9" stroke="currentColor" stroke-width="2"/></svg>
+                <strong>拍下这一餐</strong><span>识别食物、份量和营养，保存前再核对</span>
+                <div class="photo-actions"><button type="button" class="button primary" id="take-photo">拍照记录</button><button type="button" class="button secondary" id="choose-photo">上传图片</button></div>
+                <input type="file" id="food-image" accept="image/jpeg,image/png,image/webp" aria-label="上传食物图片" tabindex="-1" />
+                <input type="file" id="camera-image" accept="image/jpeg,image/png,image/webp" capture="environment" aria-label="拍摄食物照片" tabindex="-1" />
+                <small>也可拖入照片 · JPG / PNG / WebP · 最大 6 MB</small>
+              </div>
               <div id="image-preview" class="image-preview" hidden>
                 <img id="preview-image" alt="待识别的食物照片" /><button
                   type="button"
@@ -85,6 +83,7 @@
                   ×</button
                 ><span id="image-name"></span>
               </div>
+              <details id="meal-text-details" class="text-supplement"><summary>补充文字 <span>选填 · 没有照片也可以文字记录</span></summary>
               <label class="text-label" for="meal-text"
                 >说说吃了什么 <span>有照片时也可以补充</span></label
               ><textarea
@@ -107,6 +106,7 @@
                   午餐
                 </button>
               </div>
+              </details>
               <button
                 type="submit"
                 class="button primary analyze-button"
@@ -161,7 +161,7 @@
         <section id="draft-panel" class="panel draft-panel" hidden>
           <div class="panel-heading">
             <div>
-              <div class="eyebrow">CHECK BEFORE SAVING</div>
+              <div class="eyebrow">核对后，再保存</div>
               <h2 id="draft-title">识别结果</h2>
             </div>
             <span id="draft-model" class="model-tag"></span>
@@ -178,7 +178,7 @@
       <section id="summary-view" hidden>
         <div class="page-heading">
           <div>
-            <div class="eyebrow">SEE THE BIGGER PICTURE</div>
+            <div class="eyebrow">看看最近吃得怎么样</div>
             <h1>看懂一天，也看见一周<span>。</span></h1>
             <p>从已记录的饮食出发，了解营养构成，找到可以继续调整的小习惯。</p>
           </div>
@@ -210,20 +210,9 @@
           <div class="daily-table-wrap" tabindex="0" role="region" aria-label="每天饭量汇总表"><table class="daily-table"><thead><tr><th scope="col">日期</th><th scope="col">餐数</th><th scope="col">已知饭量 · g</th><th scope="col">热量 · kcal</th><th scope="col">蛋白质 · g</th><th scope="col">碳水 · g</th><th scope="col">脂肪 · g</th></tr></thead><tbody id="daily-rows"></tbody></table></div>
           <p class="summary-coverage">饭量为食物总重量。重量未填写时标为未知；只记录部分餐食的日期，数值也只是已记录部分。</p>
         </section>
+        <div class="summary-ai-action"><button class="button primary" id="generate-summary" disabled>✳ 让营养师总结 ↗</button><p id="summary-hint">正在读取已确认的饮食…</p></div>
+        <div id="summary-error" class="error-box" role="alert" hidden></div>
         <div class="summary-layout">
-          <section class="panel ai-summary">
-            <div class="panel-heading">
-              <div>
-                <h2>✳ AI 饮食总结</h2>
-                <span class="subtle">基于这段时间已确认的记录</span>
-              </div>
-              <button class="button primary" id="generate-summary">
-                生成总结 ↗
-              </button>
-            </div>
-            <div id="summary-content"></div>
-            <div id="summary-error" class="error-box" role="alert" hidden></div>
-          </section>
           <section class="panel period-records">
             <div class="panel-heading">
               <h2>本期饮食记录</h2>
@@ -236,13 +225,15 @@
       <section id="advisor-view" hidden>
         <div class="advisor-layout">
           <section class="panel advisor-panel">
-            <div class="chat-heading"><div class="advisor-avatar">✳</div><div><h2>营养师</h2><p id="profile-context-status">对话会保存到你的个人上下文</p></div><button class="text-button" id="open-profile">个人资料</button><button class="text-button" id="new-consult" aria-label="开启新对话">＋</button></div>
-            <details class="chat-record-context"><summary>参考我的饮食记录</summary><div class="advisor-meta"><label>记录日期<input id="consult-date" type="date" required /></label><label>参考范围<select id="consult-period"><option value="day">当天</option><option value="week">一周</option></select></label></div></details>
+            <div class="chat-heading"><div class="chat-heading-title"><h2>营养师 <span class="chat-status-dot" aria-label="AI 助手"></span></h2><p id="profile-context-status">对话与个人资料自动保存</p></div><button class="text-button" id="open-profile">个人资料</button><button class="chat-icon-button" id="new-consult" aria-label="开启新对话" title="开启新对话"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-6M15 4l5 5M10 14l1-5 7-7 5 5-7 7-6 1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button></div>
             <div id="consult-history" class="consult-history" role="log" aria-label="与营养师的对话" aria-live="polite"></div>
-            <form id="consult-form" class="consult-form"><textarea id="consult-question" maxlength="2000" required rows="2" aria-label="发送给营养师的消息" placeholder="问问怎么吃，或告诉我你的饮食偏好…"></textarea>
+            <form id="consult-form" class="consult-form">
+              <div id="chat-context-panel" class="advisor-meta" hidden><label>记录日期<input id="consult-date" type="date" required /></label><label>参考范围<select id="consult-period"><option value="day">当天</option><option value="week">一周</option></select></label></div>
               <div class="quick-questions"><button type="button" data-question="请解读所选日期的饮食记录，并建议下一餐怎么搭配。">解读饮食</button><button type="button" data-question="结合我的忌口和偏好，给我一个明天的三餐搭配建议。">明天吃什么</button><button type="button" data-question="请检索营养知识库，解释膳食纤维的食物来源及适用范围，并提供来源。">查营养知识</button></div>
-              <button type="submit" class="button primary" id="ask-advisor">发送 ↑</button><button type="button" class="text-button" id="cancel-consult" hidden>停止生成</button>
-              <p class="privacy-note">连续对话自动保存 · 明确的偏好与忌口会记入个人资料</p><p id="consult-error" class="error-box" hidden role="alert"></p>
+              <div class="chat-composer"><textarea id="consult-question" maxlength="2000" required rows="1" aria-label="发送给营养师的消息" placeholder="向营养师提问…"></textarea>
+                <div class="composer-toolbar"><button type="button" id="chat-record-toggle" aria-label="选择参考饮食记录" aria-expanded="false" aria-controls="chat-context-panel"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="3" stroke="currentColor" stroke-width="1.6"/><path d="M8 3v4m8-4v4M4 11h16" stroke="currentColor" stroke-width="1.6"/></svg><span id="chat-range-label">今日饮食</span></button><div class="composer-actions"><button type="button" class="chat-send" id="cancel-consult" hidden aria-label="停止生成" title="停止生成">■</button><button type="submit" class="chat-send" id="ask-advisor" aria-label="发送消息" title="发送消息"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 19V5m-6 6l6-6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></div>
+              </div>
+              <p class="privacy-note">AI 建议供参考 · 对话与饮食偏好自动保存</p><p id="consult-error" class="error-box" hidden role="alert"></p>
             </form>
           </section>
           <dialog id="profile-dialog"><div class="dialog-heading"><h2>我的个人资料</h2><button id="close-profile" class="icon-button" aria-label="关闭个人资料">×</button></div>
@@ -259,13 +250,13 @@
         </div>
       </section>
       <section id="admin-view" hidden>
-        <div class="page-heading"><div><div class="eyebrow">FAMILY OVERVIEW</div><h1>看看家人，吃得怎样<span>。</span></h1><p>超级管理员可查看全部账号的数据，此处仅供查看。</p></div></div>
+        <div class="page-heading"><div><div class="eyebrow">家人的饮食近况</div><h1>看看家人，吃得怎样<span>。</span></h1><p>超级管理员可查看全部账号的数据，此处仅供查看。</p></div></div>
         <div class="summary-controls"><label>家人<select id="admin-user"></select></label><label>日期<input type="date" id="admin-date" /></label><label>范围<select id="admin-period"><option value="week">一周</option><option value="day">当天</option></select></label></div>
         <div id="admin-content"></div>
       </section>
       <footer>
         <span
-          >NutriAgent Studio <span class="footer-mark">✳</span> 记好每一餐</span
+          >好好吃饭 <span class="footer-mark">✳</span> 记好每一餐</span
         ><span
           >AI 估算供饮食记录参考 · <a href="/studio">查看工程演示 ↗</a></span
         >
