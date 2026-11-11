@@ -21,12 +21,12 @@
       >
       <nav aria-label="功能导航">
         <button class="nav active" data-view="record">
-          <span>＋</span> 记录饮食</button
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> 记录饮食</button
         ><button class="nav" data-view="summary">
-          <span>▥</span> 营养总结
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19V11m7 8V5m7 14V8"/></svg> 营养总结
         </button>
-        <button class="nav" data-view="advisor"><span>✳</span> 营养师</button>
-        <button class="nav" data-view="admin" id="admin-nav" hidden><span>⌂</span> 家人</button>
+        <button class="nav" data-view="advisor"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3z"/></svg> 营养师</button>
+        <button class="nav" data-view="admin" id="admin-nav" hidden><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8M6 9v11h12V9M10 20v-6h4v6"/></svg> 家人</button>
       </nav>
       <button class="connection" id="connection" title="查看模型配置">
         <i></i><span>正在连接</span>
@@ -35,24 +35,12 @@
     </header>
     <main>
       <section id="record-view">
-        <div class="page-heading">
-          <div>
-            <div class="eyebrow">把每一餐，记在心上</div>
-            <h1>吃了什么，记下来就好<span>。</span></h1>
-            <p>
-              拍下这一餐，AI 帮你整理食物、份量和营养。
-            </p>
-          </div>
-          <div class="date-stamp">
-            <span id="today-label">今日</span
-            ><strong id="today-display">—</strong>
-          </div>
-        </div>
+        <div class="page-heading"><div><h1>记录饮食</h1><p>拍下这一餐，核对后保存。</p></div></div>
         <div class="record-layout">
           <section class="panel intake">
             <div class="panel-heading">
               <h2>记录一餐</h2>
-              <span class="subtle">拍照，核对，记下来</span>
+              <span class="subtle">照片优先</span>
             </div>
             <form id="meal-form">
               <div class="meal-meta">
@@ -112,7 +100,7 @@
                 class="button primary analyze-button"
                 id="analyze"
               >
-                <span>✳</span> 识别这餐饮食 <span>↗</span>
+                <span>✳︎</span> 识别这餐饮食 <span>↗</span>
               </button>
               <p class="privacy-note">
                 点击识别会将本次图片和文字发送至已配置的模型服务。确认后保存饮食记录，原图不留存。
@@ -161,7 +149,7 @@
         <section id="draft-panel" class="panel draft-panel" hidden>
           <div class="panel-heading">
             <div>
-              <div class="eyebrow">核对后，再保存</div>
+
               <h2 id="draft-title">识别结果</h2>
             </div>
             <span id="draft-model" class="model-tag"></span>
@@ -176,16 +164,7 @@
         </div>
       </section>
       <section id="summary-view" hidden>
-        <div class="page-heading">
-          <div>
-            <div class="eyebrow">看看最近吃得怎么样</div>
-            <h1>看懂一天，也看见一周<span>。</span></h1>
-            <p>从已记录的饮食出发，了解营养构成，找到可以继续调整的小习惯。</p>
-          </div>
-          <button class="button secondary" id="back-to-record">
-            ＋ 记录一餐
-          </button>
-        </div>
+        <div class="page-heading"><div><h1>营养总结</h1><p>回顾每天的摄入与一周趋势。</p></div><button class="button secondary" id="back-to-record">记录一餐</button></div>
         <div class="summary-controls">
           <div class="segmented" role="group" aria-label="总结周期">
             <button data-period="day" class="active">日总结</button
@@ -210,7 +189,7 @@
           <div class="daily-table-wrap" tabindex="0" role="region" aria-label="每天饭量汇总表"><table class="daily-table"><thead><tr><th scope="col">日期</th><th scope="col">餐数</th><th scope="col">已知饭量 · g</th><th scope="col">热量 · kcal</th><th scope="col">蛋白质 · g</th><th scope="col">碳水 · g</th><th scope="col">脂肪 · g</th></tr></thead><tbody id="daily-rows"></tbody></table></div>
           <p class="summary-coverage">饭量为食物总重量。重量未填写时标为未知；只记录部分餐食的日期，数值也只是已记录部分。</p>
         </section>
-        <div class="summary-ai-action"><button class="button primary" id="generate-summary" disabled>✳ 让营养师总结 ↗</button><p id="summary-hint">正在读取已确认的饮食…</p></div>
+        <div class="summary-ai-action"><button class="button primary" id="generate-summary" disabled>✳︎ 让营养师总结 ↗</button><p id="summary-hint">正在读取已确认的饮食…</p></div>
         <div id="summary-error" class="error-box" role="alert" hidden></div>
         <div class="summary-layout">
           <section class="panel period-records">
@@ -250,13 +229,13 @@
         </div>
       </section>
       <section id="admin-view" hidden>
-        <div class="page-heading"><div><div class="eyebrow">家人的饮食近况</div><h1>看看家人，吃得怎样<span>。</span></h1><p>超级管理员可查看全部账号的数据，此处仅供查看。</p></div></div>
-        <div class="summary-controls"><label>家人<select id="admin-user"></select></label><label>日期<input type="date" id="admin-date" /></label><label>范围<select id="admin-period"><option value="week">一周</option><option value="day">当天</option></select></label></div>
+        <div class="page-heading"><div><h1>家人饮食</h1><p>查看家人的记录与营养趋势。</p></div></div>
+        <div class="summary-controls family-filters"><label>家人<select id="admin-user"></select></label><label>日期<input type="date" id="admin-date" /></label><label>范围<select id="admin-period"><option value="week">一周</option><option value="day">当天</option></select></label></div>
         <div id="admin-content"></div>
       </section>
       <footer>
         <span
-          >好好吃饭 <span class="footer-mark">✳</span> 记好每一餐</span
+          >好好吃饭 <span class="footer-mark">✳︎</span> 记好每一餐</span
         ><span
           >AI 估算供饮食记录参考 · <a href="/studio">查看工程演示 ↗</a></span
         >

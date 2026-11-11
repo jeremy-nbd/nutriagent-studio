@@ -151,7 +151,7 @@ class HttpTests(unittest.TestCase):
         except HTTPError as error:r=error
         with r:return r.status,r.read()
     def test_frontend_and_nutrition_contract(self):
-        for path in ('/','/studio','/nutrition.js','/api/config','/api/nutrition/config'):
+        for path in ('/','/studio','/nutrition.js','/markdown.js','/api/config','/api/nutrition/config'):
             self.assertEqual(self.request(path)[0],200)
         data=dict(requestId=str(uuid.uuid4()),date='2026-11-03',slot='午餐',text='米饭')
         status,raw=self.request('/api/nutrition/analyze',data);self.assertEqual(status,200)

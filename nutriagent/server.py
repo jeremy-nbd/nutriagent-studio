@@ -15,7 +15,7 @@ from .core import ROOT, ModelClient, config, dumps, now, save_json
 from .nutrition import NutritionService, today, ID, clean
 from . import agent
 
-ASSETS = {'/':'index.html','/studio':'studio.html','/app.js':'app.js','/styles.css':'styles.css','/nutrition.js':'nutrition.js','/nutrition.css':'nutrition.css','/favicon.svg':'favicon.svg'}
+ASSETS = {'/':'index.html','/studio':'studio.html','/app.js':'app.js','/styles.css':'styles.css','/nutrition.js':'nutrition.js','/markdown.js':'markdown.js','/nutrition.css':'nutrition.css','/favicon.svg':'favicon.svg'}
 TYPES = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml'}
 
 class App:

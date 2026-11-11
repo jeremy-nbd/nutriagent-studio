@@ -1,3 +1,4 @@
+import { renderMarkdown } from './markdown.js';
 const basePath = location.pathname.startsWith("/family/") ? "/family" : "";
 let draftKey = "nutriagent:foodDraft";
 let trendMetric = "grams";
@@ -95,8 +96,8 @@ function setBusy(busy) {
       ? "正在识别图片中的食物、份量和营养参考值，可能需要一点时间…"
       : "正在整理饮食描述并估算营养，请稍候…";
   $("#analyze").innerHTML = busy
-    ? "<span>✳</span> 正在识别…"
-    : "<span>✳</span> 识别这餐饮食 <span>↗</span>";
+    ? "<span>✳︎</span> 正在识别…"
+    : "<span>✳︎</span> 识别这餐饮食 <span>↗</span>";
 }
 function switchView(view) {
   state.view = view;
@@ -236,9 +237,9 @@ function showDraft(draft) {
   $("#draft-panel").hidden = false;
   $("#draft-title").textContent =
     draft.status === "saved"
-      ? `修改份量 · ${draft.title}`
-      : `识别结果 · ${draft.title}`;
-  $("#draft-model").textContent = draft.model;
+      ? "修改这一餐"
+      : "确认这一餐";
+  $("#draft-model").textContent = "AI 估算 · 请核对";
   if (!draft.items.length) {
     $("#draft-content").innerHTML =
       `${empty("还需要一点信息", draft.question, true)}<div class="draft-actions"><span>未识别到食物，不会计入营养汇总。</span><button class="button secondary" data-discard>返回重新描述</button></div>`;
@@ -249,8 +250,19 @@ function showDraft(draft) {
       unknown: "需要补充份量",
       user_corrected: "你修订的份量",
     };
-    $("#draft-content").innerHTML =
-      `<div class="draft-explanation">${esc(draft.date)} · ${esc(draft.slot)} &nbsp; 请核对吃下的食物和克数，取消勾选没有吃的项目。份量可以修改；食物识别不对时，请补充描述重新识别。<br>营养值来自 AI 每100克参考估算，按份量换算，不代表称重或检测结果。</div><p class="table-hint">左右滑动表格，查看全部营养和「计入」选项 →</p><div class="draft-table-wrap"><table class="draft-table"><thead><tr><th>食物</th><th>吃了多少</th><th>热量</th><th>蛋白质</th><th>碳水</th><th>脂肪</th><th>计入</th></tr></thead><tbody>${draft.items.map((item) => `<tr data-food="${esc(item.id)}"><td class="food-cell"><strong>${esc(item.name)}</strong><small>原描述：${esc(item.portion)}${item.note ? ` · ${esc(item.note)}` : ""}</small></td><td class="amount-cell"><input type="number" inputmode="decimal" step="0.1" min="0.1" max="5000" value="${item.grams ?? ""}" data-grams="${esc(item.id)}" aria-label="${esc(item.name)}克数"><span>g</span><button type="button" class="halve-button" data-halve="${esc(item.id)}">吃了一半</button><small class="source-label ${item.amountSource === "estimated" ? "estimated" : ""}">${amountLabels[item.amountSource] || "待核对"}</small></td>${nutrients.map(([key, , unit]) => `<td class="nutrition-number" data-value="${key}">${num(item.nutrition?.[key])}<small>${unit}</small></td>`).join("")}<td><input class="exclude-checkbox" type="checkbox" checked data-include="${esc(item.id)}" aria-label="计入${esc(item.name)}"></td></tr>`).join("")}</tbody></table></div><div class="draft-total"><span id="draft-total-label">这餐营养合计</span><div id="draft-total-values" class="draft-total-values"></div></div>${draft.notes.length ? `<ul class="draft-notes">${draft.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}<div class="draft-actions"><span>日期与餐次：${esc(draft.date)} / ${esc(draft.slot)}<br>确认后才会计入日、周总结。</span><div><button class="button secondary" data-discard>${draft.status === "saved" ? "取消修改" : "暂不保存"}</button><button class="button primary" id="save-meal">${draft.status === "saved" ? "保存份量修改" : "确认并保存这餐"} ↗</button></div></div><div id="draft-error" class="error-box" role="alert" hidden></div>`;
+    $('#draft-content').innerHTML = `
+      <div class="draft-intro"><strong>${esc(draft.title)}</strong><span>${esc(draft.date)} · ${esc(draft.slot)}</span><p>核对吃下的份量，没吃的取消计入。</p></div>
+      <div class="draft-food-list">${draft.items.map(item => `
+        <article class="draft-food" data-food="${esc(item.id)}">
+          <div class="draft-food-heading"><h3>${esc(item.name)}</h3><label class="food-include"><input type="checkbox" checked data-include="${esc(item.id)}" aria-label="计入${esc(item.name)}">计入</label></div>
+          <div class="food-portion"><label for="grams-${esc(item.id)}">吃了多少</label><div class="portion-input"><input id="grams-${esc(item.id)}" type="number" inputmode="decimal" step="0.1" min="0.1" max="5000" value="${item.grams ?? ''}" data-grams="${esc(item.id)}" aria-label="${esc(item.name)}克数"><span>克</span></div><button type="button" class="halve-button" data-halve="${esc(item.id)}">一半</button></div>
+          ${item.grams == null ? '<p class="portion-hint">份量未知，请填写实际吃下的克数。</p>' : ''}
+          <div class="draft-food-metrics">${nutrients.map(([key,label,unit]) => `<div><span>${label}</span><strong data-value="${key}">${num(item.nutrition?.[key])}<small>${unit}</small></strong></div>`).join('')}</div>
+          <details class="food-detail"><summary>识别依据 · ${amountLabels[item.amountSource] || '待核对'}</summary><p>${esc(item.portion || '未提供份量描述')}${item.note ? ' · ' + esc(item.note) : ''}</p></details>
+        </article>`).join('')}</div>
+      <div class="draft-total"><span id="draft-total-label">这餐营养合计</span><div id="draft-total-values" class="draft-total-values"></div></div>
+      <details class="draft-method"><summary>估算说明</summary><p>营养值来自 AI 每100克参考值，按填写份量换算。识别不准确时，可补充文字重新识别。模型：${esc(draft.model)}。</p>${draft.notes.length ? `<ul>${draft.notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>` : ''}</details>
+      <div class="draft-actions"><span>确认保存后计入日、周统计。</span><div><button class="button secondary" data-discard>${draft.status === 'saved' ? '取消修改' : '暂不保存'}</button><button class="button primary" id="save-meal">${draft.status === 'saved' ? '保存修改' : '保存这餐'}</button></div></div><div id="draft-error" class="error-box" role="alert" hidden></div>`;
     recalculateDraft();
   }
   $("#draft-panel").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -278,6 +290,7 @@ function recalculateDraft() {
     const included = $(`[data-include="${item.id}"]`).checked;
     const row = $(`[data-food="${item.id}"]`);
     row.classList.toggle("excluded", !included);
+    const hint = row.querySelector(".portion-hint"); if (hint) hint.hidden = valid || !included;
     if (included) {
       count++;
       if (!valid) missing++;
@@ -572,8 +585,6 @@ async function boot() {
       ? "AI 已配置"
       : "等待配置 API";
     $("#connection").classList.toggle("offline", !c.textReady);
-    $("#today-display").textContent = c.today.slice(5).replace("-", " / ");
-    $("#today-label").textContent = `${c.today.slice(0, 4)} · 今日`;
     $("#meal-date").value = c.today;
     $("#summary-date").value = c.today;
     $("#consult-date").value = c.today; $("#admin-date").value = c.today; $("#memory-start").value = c.today; updateChatRange();
@@ -657,7 +668,7 @@ function sourceHTML(source) {
   return `<article class="source-card"><strong>${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(source.title)} ↗</a>` : esc(source.title)}</strong><p>${esc(source.detail || '')}</p>${source.excerpt ? `<blockquote>${esc(source.excerpt)}</blockquote>` : ''}</article>`;
 }
 function answerHTML(result) {
-  return `<div class="answer-text">${esc(result.answer)}</div>${result.sources?.length ? `<details class="sources"><summary>数据与参考来源 · ${result.sources.length}</summary>${result.sources.map(sourceHTML).join('')}</details>` : ''}`;
+  return `<div class="answer-text markdown-body">${renderMarkdown(result.answer)}</div>${result.sources?.length ? `<details class="sources"><summary>数据与参考来源 · ${result.sources.length}</summary>${result.sources.map(sourceHTML).join('')}</details>` : ''}`;
 }
 async function loadAdvisor() {
   if (advisorLoaded) return true;
@@ -683,10 +694,10 @@ async function loadAdvisor() {
   return advisorLoading;
 }
 function welcomeHTML() {
-  return '<div class="chat-welcome"><span>✳</span><h3>今天，想怎么吃？</h3><p>聊聊营养、搭配，或你喜欢的食物。<br>我会带上你的饮食记录，一起想办法。</p></div>';
+  return '<div class="chat-welcome"><span>✳︎</span><h3>今天，想怎么吃？</h3><p>聊聊营养、搭配，或你喜欢的食物。<br>我会带上你的饮食记录，一起想办法。</p></div>';
 }
 function chatTurnHTML(question,result,wrap=true) {
-  return `${wrap ? '<article class="consult-turn">' : ''}<div class="chat-message user-message"><small>你</small><div class="question-text">${esc(question)}</div></div><div class="chat-message assistant-message"><small>✳ 营养师</small>${answerHTML(result)}</div>${wrap ? '</article>' : ''}`;
+  return `${wrap ? '<article class="consult-turn">' : ''}<div class="chat-message user-message"><small>你</small><div class="question-text">${esc(question)}</div></div><div class="chat-message assistant-message"><small>✳︎ 营养师</small>${answerHTML(result)}</div>${wrap ? '</article>' : ''}`;
 }
 function scrollChat() { const log = $('#consult-history'); log.scrollTop = log.scrollHeight; }
 function renderProfileConversations() {
@@ -730,10 +741,10 @@ $('#consult-form').addEventListener('submit', async event => {
   const question = $('#consult-question').value.trim();
   if (!question || !state.config.advisorReady) return;
   const turn = document.createElement('article'); turn.className = 'consult-turn';
-  turn.innerHTML = `<div class="chat-message user-message"><small>你</small><div class="question-text">${esc(question)}</div></div><div class="chat-message assistant-message"><small>✳ 营养师</small><small class="consult-progress">正在查看你的资料…</small><div class="answer-text"></div></div>`;
+  turn.innerHTML = `<div class="chat-message user-message"><small>你</small><div class="question-text">${esc(question)}</div></div><div class="chat-message assistant-message"><small>✳︎ 营养师</small><small class="consult-progress">正在查看你的资料…</small><div class="answer-text"></div></div>`;
   $('#consult-history .chat-welcome')?.remove(); $('#consult-history').append(turn); scrollChat();
   consultController = new AbortController(); $('#ask-advisor').disabled = true; $('#cancel-consult').hidden = false; showError('#consult-error', '');
-  let completed = false, reader;
+  let completed = false, reader, answerBuffer = '';
   try {
     const response = await fetch(basePath + '/api/nutrition/consult', {method:'POST', headers:{'Content-Type':'application/json'}, signal:consultController.signal, body:JSON.stringify({question, date:$('#consult-date').value, period:$('#consult-period').value, continue:continueChat, conversationId, requestId:crypto.randomUUID()})});
     if (!response.ok) { if (response.status === 401) location.replace(basePath + '/login'); throw new Error((await response.json()).error || '咨询失败'); }
@@ -745,7 +756,7 @@ $('#consult-form').addEventListener('submit', async event => {
       while ((index = buffer.indexOf('\n')) >= 0) {
         const line = buffer.slice(0, index); buffer = buffer.slice(index + 1); if (!line.trim()) continue;
         const item = JSON.parse(line);
-        if (item.type === 'answer_delta') { turn.querySelector('.answer-text').textContent += item.data.text; if ($('#consult-history').scrollHeight - $('#consult-history').scrollTop - $('#consult-history').clientHeight < 180) scrollChat(); }
+        if (item.type === 'answer_delta') { answerBuffer += item.data.text; const answer = turn.querySelector('.answer-text'); answer.classList.add('markdown-body'); answer.innerHTML = renderMarkdown(answerBuffer); if ($('#consult-history').scrollHeight - $('#consult-history').scrollTop - $('#consult-history').clientHeight < 180) scrollChat(); }
         if (item.type === 'trace' && turn.querySelector('.consult-progress')) turn.querySelector('.consult-progress').textContent = item.data.title || '正在查询与核对…';
         if (item.type === 'error') throw new Error(item.data.message);
         if (item.type === 'answer_complete' || item.type === 'result') {
@@ -778,10 +789,10 @@ let adminLoaded = false, adminEpoch = 0;
 async function loadAdmin() {
   const epoch = ++adminEpoch;
   try {
-    if (!adminLoaded) { const users = await api('/api/admin/users'); $('#admin-user').innerHTML = users.map(u => `<option value="${esc(u.id)}">${esc(u.name)} · ${esc(u.username)}</option>`).join(''); adminLoaded = true; }
+    if (!adminLoaded) { const users = await api('/api/admin/users'); $('#admin-user').innerHTML = users.map(u => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join(''); adminLoaded = true; }
     const result = await api(`/api/admin/data?userId=${encodeURIComponent($('#admin-user').value)}&date=${$('#admin-date').value}&period=${$('#admin-period').value}`);
     if (epoch !== adminEpoch) return;
-    $('#admin-content').innerHTML = `<section class="panel admin-panel"><h2>${esc(result.user.name)} · ${result.stats.mealCount} 餐</h2><div class="metrics">${metricHTML(result.stats.totals)}</div><div class="daily-table-wrap"><table class="daily-table"><thead><tr><th>日期</th><th>餐数</th><th>已知饭量 · g</th><th>热量 · kcal</th></tr></thead><tbody>${result.stats.days.map(d => `<tr><th>${d.date}<small>${d.recorded ? '已记录' : '未记录'}</small></th><td>${d.count || '—'}</td><td>${num(d.grams)}${d.unknownPortions ? `<small>${d.unknownPortions} 项重量未知</small>` : ''}</td><td>${num(d.totals?.kcal)}</td></tr>`).join('')}</tbody></table></div>${result.stats.records.map(r => mealHTML(r,false)).join('') || '<p>此日期范围没有记录。</p>'}<p class="subtle">另有 ${result.drafts.length} 条未确认草稿，未计入统计。</p></section><section class="panel admin-panel"><h2>饮食记忆</h2>${result.memory.entries.map(e => `<p>${esc(e.content)} <small>· ${esc(e.status)}</small></p>`).join('') || '<p>暂无记忆。</p>'}</section><section class="panel admin-panel"><h2>咨询记录</h2>${result.consultations.slice().reverse().map(h => `<details><summary>${esc(h.createdAt.slice(0,10))} · ${esc(h.question)}</summary>${answerHTML(h.result)}</details>`).join('') || '<p>暂无咨询。</p>'}</section>`;
+    $('#admin-content').innerHTML = `<section class="panel admin-panel"><h2>${esc(result.user.name)} · ${result.stats.mealCount} 餐</h2><div class="metrics">${metricHTML(result.stats.totals)}</div><div class="daily-table-wrap"><table class="daily-table"><thead><tr><th>日期</th><th>餐数</th><th>已知饭量 · g</th><th>热量 · kcal</th></tr></thead><tbody>${result.stats.days.map(d => `<tr><th title="${esc(d.date)}">${esc(d.date.slice(5).replace("-","/"))}<small>${d.recorded ? '已记录' : '未记录'}</small></th><td>${d.count || '—'}</td><td>${num(d.grams)}${d.unknownPortions ? `<small>${d.unknownPortions} 项重量未知</small>` : ''}</td><td>${num(d.totals?.kcal)}</td></tr>`).join('')}</tbody></table></div>${result.stats.records.length ? `<details class="admin-records"><summary>本期餐食 · ${result.stats.mealCount} 餐</summary>${result.stats.records.map(r => mealHTML(r,false)).join('')}</details>` : '<p class="subtle">此日期范围没有记录。</p>'}${result.drafts.length ? `<p class="subtle">另有 ${result.drafts.length} 条未确认草稿，未计入统计。</p>` : ''}</section><details class="panel admin-panel admin-more"><summary>饮食偏好</summary>${result.memory.entries.map(e => `<p>${esc(e.content)} <small>· ${({active:'已记录',review:'待确认',ended:'已结束'})[e.status] || '待确认'}</small></p>`).join('') || '<p>暂无记忆。</p>'}</details><details class="panel admin-panel admin-more"><summary>咨询记录</summary>${result.consultations.slice().reverse().map(h => `<details><summary>${esc(h.createdAt.slice(0,10))} · ${esc(h.question)}</summary>${answerHTML(h.result)}</details>`).join('') || '<p>暂无咨询。</p>'}</details>`;
   } catch(e) { $('#admin-content').textContent = e.message; }
 }
 ['#admin-user','#admin-date','#admin-period'].forEach(id => $(id).addEventListener('change', () => void loadAdmin()));
