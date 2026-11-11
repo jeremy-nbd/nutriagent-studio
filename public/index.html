@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta
       name="description"
       content="拍下或记下每一餐，识别食物、份量和营养，回顾每天与每周的饮食。"
@@ -25,10 +25,13 @@
         ><button class="nav" data-view="summary">
           <span>▥</span> 营养总结
         </button>
+        <button class="nav" data-view="advisor"><span>✳</span> 营养师</button>
+        <button class="nav" data-view="admin" id="admin-nav" hidden><span>⌂</span> 家人</button>
       </nav>
       <button class="connection" id="connection" title="查看模型配置">
         <i></i><span>正在连接</span>
       </button>
+      <button id="account-button" class="text-button" hidden>账号</button>
     </header>
     <main>
       <section id="record-view">
@@ -49,7 +52,7 @@
           <section class="panel intake">
             <div class="panel-heading">
               <h2>记录一餐</h2>
-              <span class="subtle">照片 / 文字，都可以</span>
+              <span class="subtle">照片 / 文字 / 手动填写</span>
             </div>
             <form id="meal-form">
               <div class="meal-meta">
@@ -112,9 +115,24 @@
                 <span>✳</span> 识别这餐饮食 <span>↗</span>
               </button>
               <p class="privacy-note">
-                点击识别会将本次图片和文字发送至已配置的模型服务。确认后保存到本机，原图不留存。
+                点击识别会将本次图片和文字发送至已配置的模型服务。确认后保存饮食记录，原图不留存。
               </p>
             </form>
+            <details class="manual-entry"><summary>已有营养数值？手动填写一餐 ＋</summary>
+              <form id="manual-form">
+                <p class="subtle">使用上方日期和餐次，直接保存你填写的整餐数值。</p>
+                <label>这餐吃了什么<input id="manual-title" required maxlength="80" placeholder="例如：鸡肉沙拉和一杯牛奶" /></label>
+                <div class="manual-grid">
+                  <label>热量 · kcal<input id="manual-kcal" type="number" min="0" max="10000" step="0.1" required inputmode="decimal" /></label>
+                  <label>蛋白质 · g<input id="manual-protein" type="number" min="0" max="1000" step="0.1" required inputmode="decimal" /></label>
+                  <label>碳水 · g<input id="manual-carbs" type="number" min="0" max="1000" step="0.1" required inputmode="decimal" /></label>
+                  <label>脂肪 · g<input id="manual-fat" type="number" min="0" max="1000" step="0.1" required inputmode="decimal" /></label>
+                </div>
+                <label>食物总重量 · g（选填）<input id="manual-grams" type="number" min="0.1" max="10000" step="0.1" inputmode="decimal" placeholder="不知道可留空，不会算成 0 克" /></label>
+                <button class="button primary" type="submit">保存这一餐</button>
+                <div id="manual-error" class="error-box" role="alert" hidden></div>
+              </form>
+            </details>
             <div
               id="analysis-status"
               class="inline-status"
@@ -182,8 +200,15 @@
             <span class="coverage-badge" id="coverage-badge"></span>
           </div>
           <div id="summary-metrics" class="metrics"></div>
+          <div id="trend-controls" class="trend-controls" hidden><h3>一周趋势</h3><div class="segmented" role="group" aria-label="趋势指标"><button data-trend="grams" class="active">饭量 · g</button><button data-trend="kcal">热量 · kcal</button></div></div>
           <div id="week-chart" class="week-chart" hidden></div>
           <p id="summary-coverage" class="summary-coverage"></p>
+        </section>
+        <section class="panel daily-panel">
+          <div class="panel-heading"><h2>每天饭量汇总</h2><span class="subtle">仅已保存记录</span></div>
+          <p class="table-hint">左右滑动查看热量及三大营养素 →</p>
+          <div class="daily-table-wrap" tabindex="0" role="region" aria-label="每天饭量汇总表"><table class="daily-table"><thead><tr><th scope="col">日期</th><th scope="col">餐数</th><th scope="col">已知饭量 · g</th><th scope="col">热量 · kcal</th><th scope="col">蛋白质 · g</th><th scope="col">碳水 · g</th><th scope="col">脂肪 · g</th></tr></thead><tbody id="daily-rows"></tbody></table></div>
+          <p class="summary-coverage">饭量为食物总重量。重量未填写时标为未知；只记录部分餐食的日期，数值也只是已记录部分。</p>
         </section>
         <div class="summary-layout">
           <section class="panel ai-summary">
@@ -208,6 +233,35 @@
           </section>
         </div>
       </section>
+      <section id="advisor-view" hidden>
+        <div class="page-heading"><div><div class="eyebrow">A LITTLE HELP WITH EVERY MEAL</div><h1>下一餐，一起想一想<span>。</span></h1><p>带上你的饮食记录和偏好，问问营养师。</p></div></div>
+        <div class="advisor-layout">
+          <section class="panel advisor-panel">
+            <div class="panel-heading"><h2>✳ 营养师咨询</h2><button class="text-button" id="new-consult">新问题</button></div>
+            <div class="advisor-meta"><label>记录日期<input id="consult-date" type="date" required /></label><label>参考范围<select id="consult-period"><option value="day">当天</option><option value="week">一周</option></select></label></div>
+            <div id="consult-history" class="consult-history" aria-live="polite"></div>
+            <form id="consult-form" class="consult-form"><textarea id="consult-question" maxlength="2000" required rows="3" placeholder="比如：根据今天的记录，晚餐怎么搭配？"></textarea>
+              <div class="quick-questions"><button type="button" data-question="请解读所选日期的饮食记录，并建议下一餐怎么搭配。">解读饮食</button><button type="button" data-question="结合我的忌口和偏好，给我一个明天的三餐搭配建议。">明天吃什么</button><button type="button" data-question="请检索营养知识库，解释膳食纤维的食物来源及适用范围，并提供来源。">查营养知识</button></div>
+              <button type="submit" class="button primary" id="ask-advisor">问问营养师 ↗</button><button type="button" class="text-button" id="cancel-consult" hidden>停止生成</button>
+              <p class="privacy-note">咨询会使用所选日期的记录与饮食记忆；参考资料可展开查看。</p><p id="consult-error" class="error-box" hidden role="alert"></p>
+            </form>
+          </section>
+          <div>
+            <details class="panel memory-panel"><summary>我的饮食记忆 <span>偏好 / 目标 / 忌口</span></summary><div id="memory-list"></div><form id="memory-form" class="account-form">
+              <label>记忆类型<select id="memory-kind"><option value="restriction">忌口或当前限制</option><option value="preference">饮食偏好</option><option value="goal">饮食目标</option></select></label>
+              <label>记下什么<input id="memory-content" maxlength="300" required placeholder="例如：花生过敏；不爱吃香菜" /></label>
+              <div class="manual-grid"><label>生效日期<input id="memory-start" type="date" required /></label><label>预计结束（选填）<input id="memory-end" type="date" /></label></div>
+              <button type="submit" class="button secondary">保存记忆</button><button type="button" id="cancel-memory" class="text-button" hidden>取消修改</button><p id="memory-error" role="alert"></p>
+            </form><p class="subtle">限制到期后会提示待确认，不会自动认为已解除。</p></details>
+            <details class="panel library-panel"><summary>营养知识库 <span>资料与原页</span></summary><div id="library-status"></div><form id="library-form"><input id="library-query" required maxlength="500" placeholder="输入食物、营养素或饮食问题" /><button class="button secondary">检索</button></form><div id="library-results"></div></details>
+          </div>
+        </div>
+      </section>
+      <section id="admin-view" hidden>
+        <div class="page-heading"><div><div class="eyebrow">FAMILY OVERVIEW</div><h1>看看家人，吃得怎样<span>。</span></h1><p>超级管理员可查看全部账号的数据，此处仅供查看。</p></div></div>
+        <div class="summary-controls"><label>家人<select id="admin-user"></select></label><label>日期<input type="date" id="admin-date" /></label><label>范围<select id="admin-period"><option value="week">一周</option><option value="day">当天</option></select></label></div>
+        <div id="admin-content"></div>
+      </section>
       <footer>
         <span
           >NutriAgent Studio <span class="footer-mark">✳</span> 记好每一餐</span
@@ -216,6 +270,16 @@
         >
       </footer>
     </main>
+    <dialog id="account-dialog">
+      <div class="dialog-heading"><h2 id="account-name">我的账号</h2><button id="close-account" class="icon-button" aria-label="关闭">×</button></div>
+      <p class="subtle">饮食记录保存到当前账号，家庭管理员可查看。</p>
+      <form id="password-form" class="account-form">
+        <label>当前密码<input type="password" id="old-password" autocomplete="current-password" required maxlength="128" /></label>
+        <label>新密码<input type="password" id="new-password" autocomplete="new-password" minlength="12" maxlength="128" required placeholder="至少 12 个字符" /></label>
+        <button class="button secondary">修改密码</button><p id="account-error" role="alert"></p>
+      </form>
+      <button class="button primary" id="logout">退出登录</button>
+    </dialog>
     <dialog id="model-dialog">
       <div class="dialog-heading">
         <h2>模型连接</h2>
@@ -225,7 +289,7 @@
       </div>
       <div id="model-details"></div>
       <p class="subtle">
-        密钥只在本地 .env 中设置，不会发送到浏览器。记录和统计使用北京时间。
+        密钥由服务端管理，不会发送到浏览器。记录和统计使用北京时间。
       </p>
       <button class="button primary" id="model-done">知道了</button>
     </dialog>

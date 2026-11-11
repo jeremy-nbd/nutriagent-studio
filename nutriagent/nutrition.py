@@ -108,7 +108,10 @@ def aggregate(records, date, period='day'):
         values = {k:rounded(sum(r['totals'][k] for r in meals)) for k in KEYS}
         for k in KEYS:
             totals[k] += values[k]
-        days.append(dict(date=day, recorded=bool(meals), count=len(meals), totals=values if meals else None))
+        known = [i['grams'] for r in meals for i in r['items'] if number(i.get('grams'))]
+        unknown = sum(1 for r in meals for i in r['items'] if not number(i.get('grams')))
+        days.append(dict(date=day, recorded=bool(meals), count=len(meals), totals=values if meals else None,
+                         grams=rounded(sum(known)) if known else None, unknownPortions=unknown))
     count = sum(d['recorded'] for d in days)
     totals = {k:rounded(v) for k,v in totals.items()}
     return dict(**span, snapshotId=digest([[r['id'],r['revision'],r['date'],r['slot'],r['totals']] for r in records]),
@@ -195,9 +198,32 @@ class NutritionService:
             with self.lock:
                 self.pending.pop(id, None)
 
+    def manual(self, data):
+        id=data.get('requestId','')
+        if not isinstance(id,str) or not ID.fullmatch(id): raise ValueError('请求标识无效。')
+        date,slot=valid_date(data.get('date')),data.get('slot')
+        title=clean(data.get('title'),80)
+        values=data.get('totals',{})
+        grams=data.get('grams')
+        if slot not in SLOTS or not title or not isinstance(values,dict) or not all(number(values.get(k)) and 0<=values[k]<=(10000 if k=='kcal' else 1000) for k in KEYS):
+            raise ValueError('请填写餐食名称及有效的热量、蛋白质、碳水、脂肪。')
+        if grams is not None and (not number(grams) or not 0<grams<=10000): raise ValueError('饭量请填写大于0、不超过10000克，未知可留空。')
+        fingerprint=digest([date,slot,title,values,grams])
+        with self.lock:
+            if id in self.records:
+                old=self.get(id)
+                if old.get('inputHash')!=fingerprint: raise ValueError('请求标识冲突。')
+                return old
+            values={k:rounded(values[k]) for k in KEYS}
+            return self.save(dict(id=id,revision=1,status='saved',date=date,slot=slot,title=title,totals=values,
+                items=[dict(id='manual-1',name=title,grams=grams,nutrition=values,portion='整餐手动填写',amountSource='user_entered',nutritionSource='用户手动填写')],
+                unknownItems=int(grams is None),source='manual',nutritionSource='用户手动填写',createdAt=now(),updatedAt=now(),inputHash=fingerprint,notes=[],question='',imageStored=False))
+
     def confirm(self, id, data, editing=False):
         with self.lock:
             record = self.get(id)
+            if editing and record.get('source')=='manual':
+                raise ValueError('手动记录请移除后重新填写，不能按份量自动换算。')
             if editing and record['status'] != 'saved':
                 raise ValueError('请先确认保存。')
             if not editing and record['status']=='saved':

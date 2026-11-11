@@ -1,5 +1,6 @@
 """python3 -m nutriagent [serve|analyze|summary]"""
 import argparse
+import getpass
 import base64
 import mimetypes
 import os
@@ -24,9 +25,29 @@ def main():
     summary = commands.add_parser('summary')
     summary.add_argument('--date',default=today())
     summary.add_argument('--period',choices=['day','week'],default='day')
+    account = commands.add_parser('account',help='创建/重置/列出家庭账号；密码交互输入')
+    account.add_argument('action',choices=['create','reset','list'])
+    account.add_argument('--username')
+    account.add_argument('--name')
+    account.add_argument('--role',choices=['member','superadmin'],default='member')
     args = parser.parse_args()
     load_env(args.env_file)
+    if args.command=='account':
+        from .accounts import Accounts
+        accounts=Accounts(args.data_dir)
+        if args.action=='list':
+            print(dumps(accounts.list_users()))
+        else:
+            if not args.username: parser.error('需要 --username。')
+            name=args.name or args.username
+            password=getpass.getpass('密码（至少12字符）: ')
+            if password!=getpass.getpass('再次输入: '): parser.error('两次密码不一致。')
+            accounts.create(args.username,name,password,reset=args.action=='reset',role=args.role)
+            print('账号已保存。')
+        return
     app = App(args.data_dir)
+    if app.family and args.command in ('analyze','summary'):
+        parser.error('家庭模式请登录网页后操作，以确保记录归属正确。')
     if args.command=='analyze':
         image = None
         if args.image:

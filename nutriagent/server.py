@@ -1,4 +1,8 @@
 """本机 HTTP/SSE 服务；后台线程运行模型任务，状态通过条件变量同步。"""
+import os
+from http.cookies import SimpleCookie
+from .accounts import Accounts
+from .advisor import Advisor, Wellnest
 import copy
 import json
 import re
@@ -8,7 +12,7 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit, parse_qs
 from .core import ROOT, ModelClient, config, dumps, now, save_json
-from .nutrition import NutritionService, today, ID
+from .nutrition import NutritionService, today, ID, clean
 from . import agent
 
 ASSETS = {'/':'index.html','/studio':'studio.html','/app.js':'app.js','/styles.css':'styles.css','/nutrition.js':'nutrition.js','/nutrition.css':'nutrition.css','/favicon.svg':'favicon.svg'}
@@ -19,6 +23,21 @@ class App:
         from pathlib import Path
         self.directory = Path(directory or ROOT/'.local/runs')
         self.directory.mkdir(parents=True,exist_ok=True)
+        env = os.environ if env is None else env
+        if env.get('AUTH_MODE','local') not in ('local','family'):
+            raise ValueError('AUTH_MODE 只支持 local 或 family。')
+        self.family = env.get('AUTH_MODE','local') == 'family'
+        self.origin = env.get('PUBLIC_ORIGIN','').rstrip('/')
+        self.base_path = env.get('BASE_PATH','').rstrip('/')
+        if self.base_path not in ('','/family'):
+            raise ValueError('BASE_PATH 只支持空值或 /family。')
+        if self.family and (urlsplit(self.origin).scheme not in ('http','https') or not urlsplit(self.origin).netloc or urlsplit(self.origin).path or urlsplit(self.origin).username or urlsplit(self.origin).query or urlsplit(self.origin).fragment):
+            raise ValueError('家庭模式必须配置 PUBLIC_ORIGIN，例如 https://your-host。')
+        self.bridge=Wellnest(env)
+        self.advisors={}
+        self.accounts = Accounts(self.directory) if self.family else None
+        self.services, self.services_lock = {}, threading.RLock()
+        self.model_slots = threading.BoundedSemaphore(2)
         self.config = config(env)
         self.client = client or ModelClient(self.config)
         self.mode = 'live' if self.config['apiKey'] and self.config['model'] else 'demo'
@@ -34,6 +53,23 @@ class App:
             if run['status']=='running':
                 run.update(status='failed',error='服务已重启，中间结果已保存，请重试。')
                 self.emit(run,'failed',{'error':run['error']})
+
+    def user_service(self, user):
+        with self.services_lock:
+            if user['id'] not in self.services:
+                service = NutritionService(self.directory/'users'/user['id']/'nutrition', self.client)
+                service.slots = self.model_slots
+                self.services[user['id']] = service
+            return self.services[user['id']]
+
+    def advisor(self,user=None):
+        key=user['id'] if user else 'local'
+        with self.services_lock:
+            if key not in self.advisors:
+                n=self.user_service(user) if user else self.nutrition
+                directory=n.directory.parent
+                self.advisors[key]=Advisor(directory,n,self.bridge)
+            return self.advisors[key]
 
     def emit(self, run, kind, data):
         with self.condition:
@@ -104,6 +140,7 @@ class App:
                 self.send_header('Content-Type',mime)
                 self.send_header('Content-Length',str(len(payload)))
                 self.send_header('Cache-Control','no-store')
+                if getattr(self,'cookie',None): self.send_header('Set-Cookie',self.cookie)
                 self.send_header('X-Content-Type-Options','nosniff')
                 self.send_header('Referrer-Policy','no-referrer')
                 self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
@@ -129,18 +166,109 @@ class App:
                 self.connection.settimeout(15)
                 try:
                     host = self.headers.get('Host','')
-                    if not re.fullmatch(r'(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?',host) or self.headers.get('Origin',f'http://{host}') != f'http://{host}':
+                    allowed_host = host == urlsplit(app.origin).netloc if app.family else bool(re.fullmatch(r'(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?',host))
+                    expected_origin = app.origin if app.family else f'http://{host}'
+                    if not allowed_host or self.headers.get('Origin',expected_origin) != expected_origin or self.headers.get('Sec-Fetch-Site') == 'cross-site':
                         return self.send(403,{'error':'只允许本机同源访问。'})
                     url = urlsplit(self.path)
                     path, method, q = url.path,self.command,parse_qs(url.query)
                     if method in ('POST','PATCH','DELETE') and not self.headers.get('Content-Type','').startswith('application/json'):
                         return self.send(415,{'error':'请使用 JSON 请求。'})
+                    if app.base_path:
+                        if not path.startswith(app.base_path+'/'):
+                            return self.send(404,{'error':'页面不存在。'})
+                        path = path[len(app.base_path):]
                     n,c = app.nutrition, app.config
+                    user=None
+                    if app.family:
+                        cookie=SimpleCookie()
+                        try: cookie.load(self.headers.get('Cookie',''))
+                        except Exception: pass
+                        token=cookie['nutri_session'].value if 'nutri_session' in cookie else ''
+                        user=app.accounts.user(token)
+                        def session_cookie(value, age):
+                            return f'nutri_session={value}; Path={app.base_path or "/"}; HttpOnly; SameSite=Strict; Max-Age={age}'+('; Secure' if app.origin.startswith('https://') else '')
+                        if path=='/api/auth/login' and method=='POST':
+                            data=self.body()
+                            try: token,user=app.accounts.login(data.get('username'),data.get('password'),self.client_address[0])
+                            except ValueError as error: return self.send(401,{'error':str(error)})
+                            self.cookie=session_cookie(token,604800)
+                            return self.send(200,user)
+                        if path=='/api/auth/logout' and method=='POST':
+                            app.accounts.logout(token)
+                            self.cookie=session_cookie('',0)
+                            return self.send(200,{'ok':True})
+                        if path=='/api/auth/me' and method=='GET':
+                            return self.send(200,dict(family=True,user=user))
+                        if path in ('/login','/login.js','/nutrition.css','/favicon.svg') and method=='GET':
+                            filename={'/login':'login.html','/login.js':'login.js','/nutrition.css':'nutrition.css','/favicon.svg':'favicon.svg'}[path]
+                            file=ROOT/'public'/filename
+                            raw=file.read_bytes()
+                            if file.suffix=='.html': raw=raw.replace(b'href="/',f'href="{app.base_path}/'.encode()).replace(b'src="/',f'src="{app.base_path}/'.encode())
+                            return self.send(200,raw,TYPES[file.suffix])
+                        if not user:
+                            if path=='/':
+                                self.send_response(303); self.send_header('Location',app.base_path+'/login');self.send_header('Cache-Control','no-store');self.end_headers();return
+                            return self.send(401,{'error':'请先登录。'})
+                        if path in ('/studio','/app.js','/styles.css') or path.startswith('/api/runs') or path in ('/api/config','/api/sample'):
+                            return self.send(404,{'error':'家庭版不提供共享工程演示。'})
+                        if path=='/api/auth/password' and method=='POST':
+                            data=self.body()
+                            app.accounts.change_password(user,data.get('current'),data.get('password'),self.client_address[0])
+                            self.cookie=session_cookie('',0)
+                            return self.send(200,{'ok':True})
+                        if path.startswith('/api/admin/'):
+                            if user['role']!='superadmin':return self.send(403,{'error':'需要超级管理员权限。'})
+                            if method!='GET':return self.send(405,{'error':'管理员面板仅提供查看。'})
+                            if path=='/api/admin/users':return self.send(200,app.accounts.list_users())
+                            if path=='/api/admin/data':
+                                target=next((u for u in app.accounts.list_users() if u['id']==q.get('userId',[''])[0]),None)
+                                if not target:raise ValueError('账号不存在。')
+                                service=app.user_service(target);advisor=app.advisor(target)
+                                return self.send(200,dict(user=target,stats=service.overview(q.get('date',[today()])[0],q.get('period',['week'])[0]),drafts=service.drafts(),memory=advisor.profile(),consultations=advisor.conversations()))
+                            return self.send(404,{'error':'接口不存在。'})
+                        n=app.user_service(user)
+                    elif path=='/api/auth/me' and method=='GET':
+                        return self.send(200,dict(family=False,user=None))
                     if method=='GET' and path in ASSETS:
                         file = ROOT/'public'/ASSETS[path]
-                        return self.send(200,file.read_bytes(),TYPES[file.suffix])
+                        raw=file.read_bytes()
+                        if file.suffix=='.html': raw=raw.replace(b'href="/',f'href="{app.base_path}/'.encode()).replace(b'src="/',f'src="{app.base_path}/'.encode())
+                        return self.send(200,raw,TYPES[file.suffix])
                     if method=='GET' and path=='/api/nutrition/config':
-                        return self.send(200,dict(textReady=bool(c['apiKey'] and c['model']),imageReady=bool(c['apiKey'] and c['visionModel']),model=c['model'],visionModel=c['visionModel'],provider=c['provider'],today=today(),timeZone='Asia/Shanghai'))
+                        return self.send(200,dict(textReady=bool(c['apiKey'] and c['model']),imageReady=bool(c['apiKey'] and c['visionModel']),model=c['model'],visionModel=c['visionModel'],provider=c['provider'],today=today(),timeZone='Asia/Shanghai',advisorReady=app.bridge.ready))
+                    advisor=app.advisor(user)
+                    if path=='/api/nutrition/memory':
+                        if method=='GET':return self.send(200,advisor.profile())
+                        if method=='POST':return self.send(200,advisor.save_memory(self.body(100000)))
+                    if path=='/api/nutrition/consultations' and method=='GET':return self.send(200,advisor.conversations())
+                    if path=='/api/nutrition/consult' and method=='POST':
+                        data=self.body();events=advisor.consult(data)
+                        # Start/validate before headers, so validation failures remain JSON errors.
+                        first=next(events)
+                        self.send_response(200)
+                        self.send_header('Content-Type','application/x-ndjson; charset=utf-8')
+                        self.send_header('Cache-Control','no-store')
+                        self.send_header('X-Content-Type-Options','nosniff')
+                        self.end_headers()
+                        try:
+                            self.wfile.write((dumps(first)+'\n').encode());self.wfile.flush()
+                            for event in events:
+                                self.wfile.write((dumps(event)+'\n').encode());self.wfile.flush()
+                        except (BrokenPipeError,ConnectionResetError):pass
+                        except Exception as error:
+                            self.wfile.write((dumps(dict(type='error',data={'message':str(error) if isinstance(error,ValueError) else '咨询未完成，请重试。'}))+'\n').encode())
+                        finally:events.close()
+                        return
+                    if path=='/api/nutrition/library' and method=='GET':return self.send(200,app.bridge.json('/status'))
+                    if path=='/api/nutrition/search' and method=='POST':
+                        query=clean(self.body().get('query'),501)
+                        if not 1<=len(query)<=500:raise ValueError('请输入1–500字的检索问题。')
+                        return self.send(200,app.bridge.json('/search',{'query':query}))
+                    if path=='/api/nutrition/page' and method=='GET':
+                        return self.send(200,app.bridge.page(q.get('document',[''])[0],int(q.get('page',['0'])[0])),'image/png')
+                    if method=='POST' and path=='/api/nutrition/manual':
+                        return self.send(200,n.manual(self.body()))
                     if method=='POST' and path=='/api/nutrition/analyze':
                         return self.send(200,n.analyze(self.body(9*1024*1024)))
                     if method=='GET' and path=='/api/nutrition/overview':

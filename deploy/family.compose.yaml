@@ -1,0 +1,24 @@
+# Template for the existing NAS Python image. Copy deploy/run_family.py to the
+# source directory as run-family.py before starting. Keep seed/env private.
+version: '3.8'
+services:
+  nutrition:
+    image: portfolio-nutri:20261111
+    platform: linux/amd64
+    network_mode: container:${NUTRI_GATEWAY_CONTAINER}
+    restart: unless-stopped
+    command: [python, /app/run-family.py, --data-dir, /data, serve, --port, '4372']
+    env_file: ["${NUTRI_ENV_FILE}"]
+    volumes:
+      - ${NUTRI_SOURCE_DIR}:/app:ro
+      - ${NUTRI_ACCOUNT_SEED}:/seed/accounts.sqlite3:ro
+      - family-data:/data
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    logging:
+      driver: json-file
+      options: {max-size: 5m, max-file: '2'}
+volumes:
+  family-data:

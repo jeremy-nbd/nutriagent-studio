@@ -1,3 +1,6 @@
+const basePath = location.pathname.startsWith("/family/") ? "/family" : "";
+let draftKey = "nutriagent:foodDraft";
+let trendMetric = "grams";
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const esc = (value) =>
@@ -36,12 +39,13 @@ const nutrients = [
 const slotIcon = { 早餐: "☀", 午餐: "◒", 晚餐: "☾", 加餐: "◌" };
 function rememberDraft(id) {
   try {
-    if (id) localStorage.setItem("nutriagent:foodDraft", id);
-    else localStorage.removeItem("nutriagent:foodDraft");
+    if (id) localStorage.setItem(draftKey, id);
+    else localStorage.removeItem(draftKey);
   } catch {}
 }
 async function api(path, options = {}) {
-  const response = await fetch(path, options);
+  const response = await fetch(basePath + path, options);
+  if (response.status === 401) { location.replace(basePath + "/login"); throw new Error("请重新登录。"); }
   let data;
   try {
     data = await response.json();
@@ -98,13 +102,17 @@ function switchView(view) {
   state.view = view;
   $("#record-view").hidden = view !== "record";
   $("#summary-view").hidden = view !== "summary";
+  $("#advisor-view").hidden = view !== "advisor";
+  $("#admin-view").hidden = view !== "admin";
+  if (view === "advisor") void loadAdvisor();
+  if (view === "admin") void loadAdmin();
   $$(".nav").forEach((el) =>
     el.classList.toggle("active", el.dataset.view === view),
   );
   if (view === "summary") void refreshSummary();
 }
 function mealHTML(meal, actions = true) {
-  return `<article class="meal-row" data-record-id="${esc(meal.id)}"><div class="meal-icon">${slotIcon[meal.slot] || "◌"}</div><div class="meal-row-main"><div class="meal-row-heading"><h3>${esc(meal.title)}</h3><span>${num(meal.totals.kcal)} <small>kcal</small></span></div><p>${meal.items.map((i) => `${esc(i.name)} ${num(i.grams)}g`).join(" · ")}</p><div class="meal-row-meta"><span>${esc(meal.slot)}</span><span>营养为 AI 估算</span>${actions ? `<button data-edit="${esc(meal.id)}">修改份量</button><button data-delete="${esc(meal.id)}" data-revision="${meal.revision}">移除</button>` : ""}</div></div></article>`;
+  return `<article class="meal-row" data-record-id="${esc(meal.id)}"><div class="meal-icon">${slotIcon[meal.slot] || "◌"}</div><div class="meal-row-main"><div class="meal-row-heading"><h3>${esc(meal.title)}</h3><span>${num(meal.totals.kcal)} <small>kcal</small></span></div><p>${meal.items.map((i) => `${esc(i.name)} ${i.grams == null ? "重量未知" : `${num(i.grams)}g`}`).join(" · ")}</p><div class="meal-row-meta"><span>${esc(meal.slot)}</span><span>${meal.source === "manual" ? "手动填写" : "营养为 AI 估算"}</span>${actions ? `${meal.source === "manual" ? "" : `<button data-edit="${esc(meal.id)}">修改份量</button>`}<button data-consult-date="${esc(meal.date)}">营养师解读</button><button data-delete="${esc(meal.id)}" data-revision="${meal.revision}">移除</button>` : ""}</div></div></article>`;
 }
 async function refreshDay() {
   const epoch = ++state.dayEpoch;
@@ -239,7 +247,7 @@ function showDraft(draft) {
       user_corrected: "你修订的份量",
     };
     $("#draft-content").innerHTML =
-      `<div class="draft-explanation">${esc(draft.date)} · ${esc(draft.slot)} &nbsp; 请核对吃下的食物和克数，取消勾选没有吃的项目。份量可以修改；食物识别不对时，请补充描述重新识别。<br>营养值来自 AI 每100克参考估算，按份量换算，不代表称重或检测结果。</div><p class="table-hint">左右滑动表格，查看全部营养和「计入」选项 →</p><div class="draft-table-wrap"><table class="draft-table"><thead><tr><th>食物</th><th>吃了多少</th><th>热量</th><th>蛋白质</th><th>碳水</th><th>脂肪</th><th>计入</th></tr></thead><tbody>${draft.items.map((item) => `<tr data-food="${esc(item.id)}"><td class="food-cell"><strong>${esc(item.name)}</strong><small>原描述：${esc(item.portion)}${item.note ? ` · ${esc(item.note)}` : ""}</small></td><td class="amount-cell"><input type="number" inputmode="decimal" step="0.1" min="0.1" max="5000" value="${item.grams ?? ""}" data-grams="${esc(item.id)}" aria-label="${esc(item.name)}克数"><span>g</span><small class="source-label ${item.amountSource === "estimated" ? "estimated" : ""}">${amountLabels[item.amountSource] || "待核对"}</small></td>${nutrients.map(([key, , unit]) => `<td class="nutrition-number" data-value="${key}">${num(item.nutrition?.[key])}<small>${unit}</small></td>`).join("")}<td><input class="exclude-checkbox" type="checkbox" checked data-include="${esc(item.id)}" aria-label="计入${esc(item.name)}"></td></tr>`).join("")}</tbody></table></div><div class="draft-total"><span id="draft-total-label">这餐营养合计</span><div id="draft-total-values" class="draft-total-values"></div></div>${draft.notes.length ? `<ul class="draft-notes">${draft.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}<div class="draft-actions"><span>日期与餐次：${esc(draft.date)} / ${esc(draft.slot)}<br>确认后才会计入日、周总结。</span><div><button class="button secondary" data-discard>${draft.status === "saved" ? "取消修改" : "暂不保存"}</button><button class="button primary" id="save-meal">${draft.status === "saved" ? "保存份量修改" : "确认并保存这餐"} ↗</button></div></div><div id="draft-error" class="error-box" role="alert" hidden></div>`;
+      `<div class="draft-explanation">${esc(draft.date)} · ${esc(draft.slot)} &nbsp; 请核对吃下的食物和克数，取消勾选没有吃的项目。份量可以修改；食物识别不对时，请补充描述重新识别。<br>营养值来自 AI 每100克参考估算，按份量换算，不代表称重或检测结果。</div><p class="table-hint">左右滑动表格，查看全部营养和「计入」选项 →</p><div class="draft-table-wrap"><table class="draft-table"><thead><tr><th>食物</th><th>吃了多少</th><th>热量</th><th>蛋白质</th><th>碳水</th><th>脂肪</th><th>计入</th></tr></thead><tbody>${draft.items.map((item) => `<tr data-food="${esc(item.id)}"><td class="food-cell"><strong>${esc(item.name)}</strong><small>原描述：${esc(item.portion)}${item.note ? ` · ${esc(item.note)}` : ""}</small></td><td class="amount-cell"><input type="number" inputmode="decimal" step="0.1" min="0.1" max="5000" value="${item.grams ?? ""}" data-grams="${esc(item.id)}" aria-label="${esc(item.name)}克数"><span>g</span><button type="button" class="halve-button" data-halve="${esc(item.id)}">吃了一半</button><small class="source-label ${item.amountSource === "estimated" ? "estimated" : ""}">${amountLabels[item.amountSource] || "待核对"}</small></td>${nutrients.map(([key, , unit]) => `<td class="nutrition-number" data-value="${key}">${num(item.nutrition?.[key])}<small>${unit}</small></td>`).join("")}<td><input class="exclude-checkbox" type="checkbox" checked data-include="${esc(item.id)}" aria-label="计入${esc(item.name)}"></td></tr>`).join("")}</tbody></table></div><div class="draft-total"><span id="draft-total-label">这餐营养合计</span><div id="draft-total-values" class="draft-total-values"></div></div>${draft.notes.length ? `<ul class="draft-notes">${draft.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}<div class="draft-actions"><span>日期与餐次：${esc(draft.date)} / ${esc(draft.slot)}<br>确认后才会计入日、周总结。</span><div><button class="button secondary" data-discard>${draft.status === "saved" ? "取消修改" : "暂不保存"}</button><button class="button primary" id="save-meal">${draft.status === "saved" ? "保存份量修改" : "确认并保存这餐"} ↗</button></div></div><div id="draft-error" class="error-box" role="alert" hidden></div>`;
     recalculateDraft();
   }
   $("#draft-panel").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -394,6 +402,8 @@ async function refreshSummary() {
         ? `本周${stats.recordedDays}天有饮食记录，${stats.missingDays}天未记录。日均按有记录的${stats.recordedDays}天计算；未记录日不按0摄入处理。${stats.notice}`
         : stats.notice;
     $("#week-chart").hidden = state.period !== "week";
+    $("#trend-controls").hidden = state.period !== "week";
+    renderDailyTable(stats);
     if (state.period === "week") renderChart(stats);
     $("#period-count").textContent = `${stats.mealCount} 餐`;
     $("#period-list").innerHTML = stats.mealCount
@@ -433,18 +443,19 @@ async function refreshSummary() {
     }
   }
 }
+function renderDailyTable(stats) {
+  $("#daily-rows").innerHTML = stats.days.map(d => `<tr class="${d.recorded ? "" : "unrecorded"}"><th scope="row">${esc(d.date.slice(5).replace("-", "/"))}<small>${d.recorded ? "已记录" : "未记录"}</small></th><td>${d.recorded ? d.count : "—"}</td><td>${d.recorded ? num(d.grams) : "—"}${d.unknownPortions ? `<small>${d.unknownPortions} 项重量未知</small>` : ""}</td>${nutrients.map(([k]) => `<td>${num(d.totals?.[k])}</td>`).join("")}</tr>`).join("");
+}
 function renderChart(stats) {
-  const max = Math.max(
-    1,
-    ...stats.days.filter((d) => d.recorded).map((d) => d.totals.kcal),
-  );
-  const weekdays = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
-  $("#week-chart").innerHTML = stats.days
-    .map(
-      (d, i) =>
-        `<div class="week-day">${d.recorded ? `<div class="week-column"><span class="week-value">${num(d.totals.kcal)} kcal</span><div class="week-bar" style="height:${Math.max(2, (d.totals.kcal / max) * 90)}px"></div></div>` : '<div class="week-column missing">未记录</div>'}<div class="week-label">${weekdays[i]}<small>${d.date.slice(5).replace("-", "/")}</small></div></div>`,
-    )
-    .join("");
+  const weight = trendMetric === "grams";
+  const value = d => weight ? d.grams : d.totals?.kcal;
+  const max = Math.max(1, ...stats.days.map(d => value(d) ?? 0));
+  const weekdays = ["一", "二", "三", "四", "五", "六", "日"];
+  $("#week-chart").innerHTML = stats.days.map((d, i) => {
+    const v = value(d);
+    const title = !d.recorded ? "未记录" : v == null ? "重量未知" : `${num(v)} ${weight ? "g" : "kcal"}${weight && d.unknownPortions ? "（部分重量）" : ""}`;
+    return `<div class="week-day" title="${esc(d.date + " " + title)}" aria-label="${esc(d.date + " " + title)}">${v != null ? `<div class="week-column"><span class="week-value">${num(v)}${weight && d.unknownPortions ? "*" : ""}</span><div class="week-bar" style="height:${Math.max(2, v / max * 90)}px"></div></div>` : `<div class="week-column missing">${d.recorded ? "重量未知" : "未记录"}</div>`}<div class="week-label">周${weekdays[i]}<small>${d.date.slice(5).replace("-", "/")}</small></div></div>`;
+  }).join("") + (weight && stats.days.some(d => d.unknownPortions) ? '<p class="chart-note">* 仅包含已知重量；未知份量未按 0 克计算。</p>' : "");
 }
 async function generateSummary() {
   if (state.summaryBusy || !state.stats?.mealCount) return;
@@ -566,6 +577,16 @@ document.addEventListener("click", async (e) => {
     );
     void refreshSummary();
   }
+  const consultMeal = e.target.closest("[data-consult-date]");
+  if (consultMeal) {
+    $("#consult-date").value = consultMeal.dataset.consultDate;
+    $("#consult-period").value = "day";
+    const record = state.day?.records.find(r => r.date === consultMeal.dataset.consultDate && r.id === consultMeal.closest("[data-record-id]").dataset.recordId);
+    $("#consult-question").value = `请结合当天记录，解读${record?.slot || "这餐"}的${record?.title || "饮食"}，建议下一餐怎么搭配。`;
+    switchView("advisor");
+  }
+  const half = e.target.closest("[data-halve]");
+  if (half) { const input = $(`[data-grams="${half.dataset.halve}"]`); if (Number(input.value) > 0) { input.value = Math.round(Number(input.value) * 5) / 10; recalculateDraft(); } }
   const edit = e.target.closest("[data-edit]");
   if (edit) await openRecord(edit.dataset.edit);
   const remove = e.target.closest("[data-delete]");
@@ -584,6 +605,16 @@ document.addEventListener("click", async (e) => {
 });
 async function boot() {
   try {
+    const auth = await api("/api/auth/me");
+    if (auth.family) {
+      if (!auth.user) { location.replace(basePath + "/login"); return; }
+      draftKey = "nutriagent:foodDraft:" + auth.user.id;
+      $("#admin-nav").hidden = auth.user.role !== "superadmin";
+      $("#account-button").hidden = false;
+      $("#account-button").textContent = auth.user.name;
+      $("#account-name").textContent = auth.user.name + " · " + auth.user.username;
+      document.querySelector('a[href$="/studio"]')?.remove();
+    }
     state.config = await api("/api/nutrition/config");
     const c = state.config;
     $("#connection span").textContent = c.textReady
@@ -594,6 +625,8 @@ async function boot() {
     $("#today-label").textContent = `${c.today.slice(0, 4)} · TODAY`;
     $("#meal-date").value = c.today;
     $("#summary-date").value = c.today;
+    $("#consult-date").value = c.today; $("#admin-date").value = c.today; $("#memory-start").value = c.today;
+    $("#ask-advisor").disabled = !c.advisorReady;
     const hour = Number(
       new Intl.DateTimeFormat("en-GB", {
         timeZone: c.timeZone,
@@ -609,7 +642,7 @@ async function boot() {
     await refreshDay();
     let saved;
     try {
-      saved = localStorage.getItem("nutriagent:foodDraft");
+      saved = localStorage.getItem(draftKey);
     } catch {}
     if (saved) {
       try {
@@ -627,4 +660,146 @@ async function boot() {
     showError("#form-error", error.message);
   }
 }
+let manualRequest = null, manualSignature = null;
+$("#manual-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = {title: $("#manual-title").value.trim(), date: $("#meal-date").value, slot: $("#meal-slot").value, grams: $("#manual-grams").value === "" ? null : Number($("#manual-grams").value), totals: Object.fromEntries(nutrients.map(([k]) => [k, Number($("#manual-" + k).value)]))};
+  const signature = JSON.stringify(data);
+  if (signature !== manualSignature || !manualRequest) { manualRequest = crypto.randomUUID(); manualSignature = signature; }
+  form.querySelectorAll("input,button").forEach(e => e.disabled = true);
+  showError("#manual-error", "");
+  try {
+    await send("/api/nutrition/manual", {...data, requestId: manualRequest});
+    manualRequest = null; form.reset(); state.summaryEpoch++;
+    await refreshDay(); if (state.view === "summary") await refreshSummary();
+    toast("已保存这一餐，可以查看当天饮食建议。");
+  } catch (error) { showError("#manual-error", error.message); }
+  finally { form.querySelectorAll("input,button").forEach(e => e.disabled = false); }
+});
+document.querySelectorAll("[data-trend]").forEach(button => button.addEventListener("click", () => {
+  trendMetric = button.dataset.trend;
+  document.querySelectorAll("[data-trend]").forEach(b => b.classList.toggle("active", b === button));
+  if (state.stats) renderChart(state.stats);
+}));
+$("#account-button").addEventListener("click", () => $("#account-dialog").showModal());
+$("#close-account").addEventListener("click", () => $("#account-dialog").close());
+$("#logout").addEventListener("click", async () => {
+  try { await send("/api/auth/logout", {}); location.replace(basePath + "/login"); }
+  catch (error) { toast(error.message); }
+});
+$("#password-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const button = event.currentTarget.querySelector("button"); button.disabled = true;
+  try { await send("/api/auth/password", {current: $("#old-password").value, password: $("#new-password").value}); location.replace(basePath + "/login"); }
+  catch (error) { $("#account-error").textContent = error.message; }
+  finally { button.disabled = false; }
+});
+window.addEventListener("pageshow", event => { if (event.persisted) location.reload(); });
 void boot();
+
+let memory = {revision: 0, entries: []}, editingMemory = null, advisorLoaded = false, continueChat = false, consultController = null;
+function sourceHTML(source) {
+  let url = '';
+  if (source.url?.startsWith('/api/rag/page?')) url = basePath + source.url.replace('/api/rag/page?', '/api/nutrition/page?');
+  else if (/^https?:\/\//.test(source.url || '')) url = source.url;
+  return `<article class="source-card"><strong>${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(source.title)} ↗</a>` : esc(source.title)}</strong><p>${esc(source.detail || '')}</p>${source.excerpt ? `<blockquote>${esc(source.excerpt)}</blockquote>` : ''}</article>`;
+}
+function answerHTML(result) {
+  return `<div class="answer-text">${esc(result.answer)}</div>${result.sources?.length ? `<details class="sources"><summary>数据与参考来源 · ${result.sources.length}</summary>${result.sources.map(sourceHTML).join('')}</details>` : ''}`;
+}
+async function loadAdvisor() {
+  if (advisorLoaded) return;
+  try {
+    const [m, history] = await Promise.all([api('/api/nutrition/memory'), api('/api/nutrition/consultations')]);
+    memory = m; renderMemory();
+    $('#consult-history').innerHTML = history.slice(-6).map(h => `<article class="consult-turn"><div class="question-text">${esc(h.question)}</div><small>${esc(h.date)} · ${h.period === 'week' ? '周记录' : '日记录'}</small>${answerHTML(h.result)}</article>`).join('') || '<p class="advisor-welcome">今天吃了什么、下一餐怎么搭配，都可以从这里开始。</p>';
+    advisorLoaded = true;
+    if (state.config.advisorReady) {
+      const library = await api('/api/nutrition/library');
+      $('#library-status').innerHTML = `<p class="subtle">${library.ready ? `已连接 · ${library.documents.length} 份资料 / ${library.chunks} 个片段` : '知识库尚未完成建库'}</p>${library.documents.map(d => `<p>${esc(d.name)} <small>${d.pages} 页</small></p>`).join('')}`;
+    } else $('#library-status').textContent = '营养师知识服务尚未连接，请联系管理员。';
+  } catch (e) { toast(e.message); }
+}
+function renderMemory() {
+  $('#memory-list').innerHTML = memory.entries.map(e => `<article class="memory-entry"><strong>${esc(e.content)}</strong><small>${({preference:'偏好',goal:'目标',restriction:'限制'})[e.kind]} · ${e.status === 'ended' ? '已结束' : e.status === 'review' || e.kind === 'restriction' && e.validUntil && e.validUntil < state.config.today ? '待确认' : e.validFrom > state.config.today ? '尚未生效' : '已记录'} · ${esc(e.validFrom)}${e.validUntil ? ' 至 ' + esc(e.validUntil) : ''}</small><div><button data-memory-edit="${e.id}">修改</button>${e.status !== 'ended' ? `<button data-memory-end="${e.id}">明确结束</button>` : ''}<button data-memory-delete="${e.id}">删除</button></div></article>`).join('') || '<p class="subtle">还没有饮食记忆，按需填写即可。</p>';
+}
+async function saveMemory(entries) {
+  memory = await send('/api/nutrition/memory', {revision: memory.revision, entries}); renderMemory();
+}
+function resetMemoryForm() { editingMemory = null; $('#memory-form').reset(); $('#memory-start').value = state.config.today; $('#cancel-memory').hidden = true; }
+$('#memory-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const old = memory.entries.find(e => e.id === editingMemory);
+  const entry = {...old, id: editingMemory || crypto.randomUUID(), kind: $('#memory-kind').value, content: $('#memory-content').value.trim(), status: 'active', saidOn: old?.saidOn || state.config.today, validFrom: $('#memory-start').value, validUntil: $('#memory-end').value || null, confirmedOn: state.config.today, sourceText: ''};
+  try { await saveMemory([...memory.entries.filter(e => e.id !== entry.id), entry]); resetMemoryForm(); }
+  catch(e) { $('#memory-error').textContent = e.message; }
+});
+$('#cancel-memory').addEventListener('click', resetMemoryForm);
+document.addEventListener('click', async event => {
+  const button = event.target.closest('[data-memory-edit],[data-memory-end],[data-memory-delete]');
+  if (button) {
+    const id = button.dataset.memoryEdit || button.dataset.memoryEnd || button.dataset.memoryDelete;
+    const entry = memory.entries.find(e => e.id === id);
+    if (button.dataset.memoryEdit) { editingMemory = id; $('#memory-kind').value = entry.kind; $('#memory-content').value = entry.content; $('#memory-start').value = entry.validFrom; $('#memory-end').value = entry.validUntil || ''; $('#cancel-memory').hidden = false; }
+    else {
+      if (!confirm(button.dataset.memoryEnd ? '确认这项偏好、目标或限制已经结束？' : '删除这条饮食记忆？')) return;
+      try { await saveMemory(button.dataset.memoryEnd ? memory.entries.map(e => e.id === id ? {...e, status:'ended'} : e) : memory.entries.filter(e => e.id !== id)); }
+      catch(e) { toast(e.message); }
+    }
+  }
+  const quick = event.target.closest('[data-question]'); if (quick) $('#consult-question').value = quick.dataset.question;
+});
+$('#new-consult').addEventListener('click', () => { if (consultController) return; continueChat = false; $('#consult-history').innerHTML = ''; $('#consult-question').value = ''; toast('新问题会读取当前饮食记忆与所选日期，不带入旧对话。'); });
+$('#cancel-consult').addEventListener('click', () => consultController?.abort());
+$('#consult-form').addEventListener('submit', async event => {
+  event.preventDefault(); if (consultController) return;
+  const question = $('#consult-question').value.trim();
+  const turn = document.createElement('article'); turn.className = 'consult-turn';
+  turn.innerHTML = `<div class="question-text">${esc(question)}</div><small class="consult-progress">正在整理饮食记录与资料…</small><div class="answer-text"></div>`;
+  $('#consult-history').append(turn);
+  consultController = new AbortController(); $('#ask-advisor').disabled = true; $('#cancel-consult').hidden = false; showError('#consult-error', '');
+  let completed = false, reader;
+  try {
+    const response = await fetch(basePath + '/api/nutrition/consult', {method:'POST', headers:{'Content-Type':'application/json'}, signal:consultController.signal, body:JSON.stringify({question, date:$('#consult-date').value, period:$('#consult-period').value, continue:continueChat, requestId:crypto.randomUUID()})});
+    if (!response.ok) { if (response.status === 401) location.replace(basePath + '/login'); throw new Error((await response.json()).error || '咨询失败'); }
+    reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = '';
+    while (true) {
+      const {value, done} = await reader.read(); if (done) break;
+      buffer += decoder.decode(value, {stream:true});
+      let index;
+      while ((index = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, index); buffer = buffer.slice(index + 1); if (!line.trim()) continue;
+        const item = JSON.parse(line);
+        if (item.type === 'answer_delta') turn.querySelector('.answer-text').textContent += item.data.text;
+        if (item.type === 'trace') turn.querySelector('.consult-progress').textContent = item.data.title || '正在查询与核对…';
+        if (item.type === 'error') throw new Error(item.data.message);
+        if (item.type === 'result') { turn.innerHTML = `<div class="question-text">${esc(question)}</div>${answerHTML(item.data)}`; completed = true; continueChat = true; }
+      }
+    }
+    if (!completed) throw new Error('回答中断，请重新提问。');
+    $('#consult-question').value = '';
+  } catch(e) {
+    const message = e.name === 'AbortError' ? '已停止生成；当前显示内容未完成。' : e.message;
+    showError('#consult-error', message); turn.querySelector('.consult-progress')?.remove();
+    turn.insertAdjacentHTML('beforeend', `<p class="subtle">${esc(message)}</p>`);
+  } finally { if (!completed) await reader?.cancel().catch(() => {}); consultController = null; $('#ask-advisor').disabled = !state.config.advisorReady; $('#cancel-consult').hidden = true; }
+});
+$('#library-form').addEventListener('submit', async event => {
+  event.preventDefault(); const button = event.currentTarget.querySelector('button'); button.disabled = true; $('#library-results').textContent = '正在检索…';
+  try {
+    const result = await send('/api/nutrition/search', {query:$('#library-query').value});
+    $('#library-results').innerHTML = `<p class="subtle">${esc(result.mode)} · ${esc(result.warning || '')}</p>` + (result.hits.map(h => sourceHTML({title:`${h.filename} · PDF 第 ${h.page} 页`, detail:h.extraction, excerpt:h.text, url:'/api/rag/page?document='+encodeURIComponent(h.documentId)+'&page='+h.page})).join('') || '<p>暂无相关片段，请换一个具体问题。</p>');
+  } catch(e) { $('#library-results').textContent = e.message; } finally { button.disabled = false; }
+});
+let adminLoaded = false, adminEpoch = 0;
+async function loadAdmin() {
+  const epoch = ++adminEpoch;
+  try {
+    if (!adminLoaded) { const users = await api('/api/admin/users'); $('#admin-user').innerHTML = users.map(u => `<option value="${esc(u.id)}">${esc(u.name)} · ${esc(u.username)}</option>`).join(''); adminLoaded = true; }
+    const result = await api(`/api/admin/data?userId=${encodeURIComponent($('#admin-user').value)}&date=${$('#admin-date').value}&period=${$('#admin-period').value}`);
+    if (epoch !== adminEpoch) return;
+    $('#admin-content').innerHTML = `<section class="panel admin-panel"><h2>${esc(result.user.name)} · ${result.stats.mealCount} 餐</h2><div class="metrics">${metricHTML(result.stats.totals)}</div><div class="daily-table-wrap"><table class="daily-table"><thead><tr><th>日期</th><th>餐数</th><th>已知饭量 · g</th><th>热量 · kcal</th></tr></thead><tbody>${result.stats.days.map(d => `<tr><th>${d.date}<small>${d.recorded ? '已记录' : '未记录'}</small></th><td>${d.count || '—'}</td><td>${num(d.grams)}${d.unknownPortions ? `<small>${d.unknownPortions} 项重量未知</small>` : ''}</td><td>${num(d.totals?.kcal)}</td></tr>`).join('')}</tbody></table></div>${result.stats.records.map(r => mealHTML(r,false)).join('') || '<p>此日期范围没有记录。</p>'}<p class="subtle">另有 ${result.drafts.length} 条未确认草稿，未计入统计。</p></section><section class="panel admin-panel"><h2>饮食记忆</h2>${result.memory.entries.map(e => `<p>${esc(e.content)} <small>· ${esc(e.status)}</small></p>`).join('') || '<p>暂无记忆。</p>'}</section><section class="panel admin-panel"><h2>咨询记录</h2>${result.consultations.slice().reverse().map(h => `<details><summary>${esc(h.createdAt.slice(0,10))} · ${esc(h.question)}</summary>${answerHTML(h.result)}</details>`).join('') || '<p>暂无咨询。</p>'}</section>`;
+  } catch(e) { $('#admin-content').textContent = e.message; }
+}
+['#admin-user','#admin-date','#admin-period'].forEach(id => $(id).addEventListener('change', () => void loadAdmin()));
