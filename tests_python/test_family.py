@@ -155,3 +155,70 @@ class AdminTests(FamilyHttpTests):
         self.assertEqual(status,200);self.assertEqual(data['stats']['mealCount'],1)
         self.assertEqual(self.req('/api/admin/data',{},admin)[0],405)
         self.assertEqual(self.req('/api/auth/me',cookie=admin)[2]['user']['role'],'superadmin')
+
+class ChatContextTests(AdvisorTests):
+    def ask(self,question='今天怎么吃',**kw):
+        return list(self.advisor.consult(dict(question=question,date='2026-11-11',requestId=str(uuid.uuid4()),**kw)))
+    def test_auto_profile_exact_quotes_and_persistence(self):
+        from unittest.mock import patch
+        from nutriagent.advisor import Advisor
+        with patch.object(self.n.client,'structured',return_value={'entries':[
+            {'kind':'preference','quote':'我不喜欢香菜'},
+            {'kind':'restriction','quote':'我对花生过敏'},
+            {'kind':'restriction','quote':'我有糖尿病'}]}):
+            events=self.ask('我不喜欢香菜。我对花生过敏。明天怎么吃？')
+            self.assertEqual([e['type'] for e in events],['answer_delta','answer_complete','profile_updated','result'])
+            entries=self.advisor.profile()['entries']
+            self.assertEqual([e['content'] for e in entries],['我不喜欢香菜','我对花生过敏'])
+            self.assertEqual(entries[1]['status'],'review')
+            self.assertTrue(all(e['sourceText'].startswith('来自营养师对话：') for e in entries))
+            self.ask('我不喜欢香菜。我对花生过敏。')
+            self.assertEqual(len(self.advisor.profile()['entries']),2)
+        restored=Advisor(self.root,self.n,self.advisor.bridge)
+        self.assertEqual(restored.profile(),self.advisor.profile())
+        self.assertEqual(len(restored.conversations()),2)
+        self.assertEqual(len(self.calls[-1]['memory']['entries']),2)
+    def test_questions_hypotheses_and_third_parties_not_facts(self):
+        from unittest.mock import patch
+        with patch.object(self.n.client,'structured') as model:
+            for question in ('我是不是需要减肥？','如果我有糖尿病应该怎么吃？','我对花生过敏吗？','妈妈不吃香菜。','我有糖尿病的话应该怎么吃？'):
+                self.ask(question)
+            model.assert_not_called()
+        self.assertEqual(self.advisor.profile()['entries'],[])
+    def test_default_continuation_new_topic_and_bounded_history(self):
+        first=self.ask()[ -1]['data']['conversationId']
+        for i in range(10):self.ask('第%d个饮食问题'%i)
+        self.assertEqual(len(self.calls[-1]['messages']),17)
+        self.assertEqual(self.advisor.conversations()[-1]['conversationId'],first)
+        self.advisor.save_memory({'revision':0,'entries':[self.entry()]})
+        topic=str(uuid.uuid4())
+        self.ask('新话题',conversationId=topic,**{'continue':False})
+        self.assertEqual(len(self.calls[-1]['messages']),1)
+        self.assertEqual(len(self.calls[-1]['memory']['entries']),1)
+        self.ask('继续新话题')
+        self.assertEqual([m['content'] for m in self.calls[-1]['messages']],['新话题','完整建议','继续新话题'])
+        self.assertEqual(self.advisor.conversations()[-1]['conversationId'],topic)
+    def test_profile_failure_keeps_answer_and_releases_locks(self):
+        from unittest.mock import patch
+        with patch.object(self.n.client,'structured',side_effect=ValueError('model unavailable')):
+            events=self.ask('我喜欢吃米饭。')
+        self.assertEqual([e['type'] for e in events][-3:],['answer_complete','profile_notice','result'])
+        self.assertEqual(len(self.advisor.conversations()),1)
+        self.assertEqual(self.advisor.profile()['entries'],[])
+        self.ask()
+    def test_incomplete_answer_never_captures_profile(self):
+        import io
+        from unittest.mock import patch
+        self.advisor.bridge.open=lambda *a:io.BytesIO(b'')
+        with patch.object(self.n.client,'structured') as model:
+            with self.assertRaises(ValueError):self.ask('我喜欢米饭。')
+            model.assert_not_called()
+        self.assertEqual(self.advisor.conversations(),[])
+    def test_memory_and_chat_are_account_scoped(self):
+        from nutriagent.advisor import Advisor
+        other_root=self.root/'other';other_root.mkdir()
+        other=Advisor(other_root,NutritionService(other_root/'nutrition',FakeClient()),self.advisor.bridge)
+        self.advisor.save_memory({'revision':0,'entries':[self.entry()]})
+        self.ask()
+        self.assertEqual(other.conversations(),[])
+        self.assertEqual(other.profile()['entries'],[])

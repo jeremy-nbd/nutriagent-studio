@@ -234,27 +234,28 @@
         </div>
       </section>
       <section id="advisor-view" hidden>
-        <div class="page-heading"><div><div class="eyebrow">A LITTLE HELP WITH EVERY MEAL</div><h1>下一餐，一起想一想<span>。</span></h1><p>带上你的饮食记录和偏好，问问营养师。</p></div></div>
         <div class="advisor-layout">
           <section class="panel advisor-panel">
-            <div class="panel-heading"><h2>✳ 营养师咨询</h2><button class="text-button" id="new-consult">新问题</button></div>
-            <div class="advisor-meta"><label>记录日期<input id="consult-date" type="date" required /></label><label>参考范围<select id="consult-period"><option value="day">当天</option><option value="week">一周</option></select></label></div>
-            <div id="consult-history" class="consult-history" aria-live="polite"></div>
-            <form id="consult-form" class="consult-form"><textarea id="consult-question" maxlength="2000" required rows="3" placeholder="比如：根据今天的记录，晚餐怎么搭配？"></textarea>
+            <div class="chat-heading"><div class="advisor-avatar">✳</div><div><h2>营养师</h2><p id="profile-context-status">对话会保存到你的个人上下文</p></div><button class="text-button" id="open-profile">个人资料</button><button class="text-button" id="new-consult" aria-label="开启新对话">＋</button></div>
+            <details class="chat-record-context"><summary>参考我的饮食记录</summary><div class="advisor-meta"><label>记录日期<input id="consult-date" type="date" required /></label><label>参考范围<select id="consult-period"><option value="day">当天</option><option value="week">一周</option></select></label></div></details>
+            <div id="consult-history" class="consult-history" role="log" aria-label="与营养师的对话" aria-live="polite"></div>
+            <form id="consult-form" class="consult-form"><textarea id="consult-question" maxlength="2000" required rows="2" aria-label="发送给营养师的消息" placeholder="问问怎么吃，或告诉我你的饮食偏好…"></textarea>
               <div class="quick-questions"><button type="button" data-question="请解读所选日期的饮食记录，并建议下一餐怎么搭配。">解读饮食</button><button type="button" data-question="结合我的忌口和偏好，给我一个明天的三餐搭配建议。">明天吃什么</button><button type="button" data-question="请检索营养知识库，解释膳食纤维的食物来源及适用范围，并提供来源。">查营养知识</button></div>
-              <button type="submit" class="button primary" id="ask-advisor">问问营养师 ↗</button><button type="button" class="text-button" id="cancel-consult" hidden>停止生成</button>
-              <p class="privacy-note">咨询会使用所选日期的记录与饮食记忆；参考资料可展开查看。</p><p id="consult-error" class="error-box" hidden role="alert"></p>
+              <button type="submit" class="button primary" id="ask-advisor">发送 ↑</button><button type="button" class="text-button" id="cancel-consult" hidden>停止生成</button>
+              <p class="privacy-note">连续对话自动保存 · 明确的偏好与忌口会记入个人资料</p><p id="consult-error" class="error-box" hidden role="alert"></p>
             </form>
           </section>
-          <div>
-            <details class="panel memory-panel"><summary>我的饮食记忆 <span>偏好 / 目标 / 忌口</span></summary><div id="memory-list"></div><form id="memory-form" class="account-form">
+          <dialog id="profile-dialog"><div class="dialog-heading"><h2>我的个人资料</h2><button id="close-profile" class="icon-button" aria-label="关闭个人资料">×</button></div>
+            <p class="subtle">记录你的自述，作为后续营养问答的上下文。资料可修改或结束；家庭管理员可查看。</p>
+            <details class="panel memory-panel" open><summary>饮食偏好与限制 <span>手动填写及聊天中记下的资料</span></summary><div id="memory-list"></div><form id="memory-form" class="account-form">
               <label>记忆类型<select id="memory-kind"><option value="restriction">忌口或当前限制</option><option value="preference">饮食偏好</option><option value="goal">饮食目标</option></select></label>
               <label>记下什么<input id="memory-content" maxlength="300" required placeholder="例如：花生过敏；不爱吃香菜" /></label>
               <div class="manual-grid"><label>生效日期<input id="memory-start" type="date" required /></label><label>预计结束（选填）<input id="memory-end" type="date" /></label></div>
               <button type="submit" class="button secondary">保存记忆</button><button type="button" id="cancel-memory" class="text-button" hidden>取消修改</button><p id="memory-error" role="alert"></p>
             </form><p class="subtle">限制到期后会提示待确认，不会自动认为已解除。</p></details>
+            <details class="panel profile-conversations"><summary>对话记录 <span id="conversation-count"></span></summary><div id="profile-conversations"></div></details>
             <details class="panel library-panel"><summary>营养知识库 <span>资料与原页</span></summary><div id="library-status"></div><form id="library-form"><input id="library-query" required maxlength="500" placeholder="输入食物、营养素或饮食问题" /><button class="button secondary">检索</button></form><div id="library-results"></div></details>
-          </div>
+          </dialog>
         </div>
       </section>
       <section id="admin-view" hidden>

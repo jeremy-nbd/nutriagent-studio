@@ -100,6 +100,7 @@ function setBusy(busy) {
 }
 function switchView(view) {
   state.view = view;
+  document.body.classList.toggle("advisor-mode", view === "advisor");
   $("#record-view").hidden = view !== "record";
   $("#summary-view").hidden = view !== "summary";
   $("#advisor-view").hidden = view !== "advisor";
@@ -698,7 +699,7 @@ $("#password-form").addEventListener("submit", async event => {
 window.addEventListener("pageshow", event => { if (event.persisted) location.reload(); });
 void boot();
 
-let memory = {revision: 0, entries: []}, editingMemory = null, advisorLoaded = false, continueChat = false, consultController = null;
+let memory = {revision: 0, entries: []}, editingMemory = null, advisorLoaded = false, continueChat = true, consultController = null, conversationId = null, conversationHistory = [];
 function sourceHTML(source) {
   let url = '';
   if (source.url?.startsWith('/api/rag/page?')) url = basePath + source.url.replace('/api/rag/page?', '/api/nutrition/page?');
@@ -712,8 +713,11 @@ async function loadAdvisor() {
   if (advisorLoaded) return;
   try {
     const [m, history] = await Promise.all([api('/api/nutrition/memory'), api('/api/nutrition/consultations')]);
-    memory = m; renderMemory();
-    $('#consult-history').innerHTML = history.slice(-6).map(h => `<article class="consult-turn"><div class="question-text">${esc(h.question)}</div><small>${esc(h.date)} · ${h.period === 'week' ? '周记录' : '日记录'}</small>${answerHTML(h.result)}</article>`).join('') || '<p class="advisor-welcome">今天吃了什么、下一餐怎么搭配，都可以从这里开始。</p>';
+    memory = m; conversationHistory = history; renderMemory(); renderProfileConversations();
+    conversationId = history.at(-1)?.conversationId || null;
+    const current = conversationId ? history.filter(h => h.conversationId === conversationId) : history;
+    $('#consult-history').innerHTML = current.slice(-30).map(h => chatTurnHTML(h.question,h.result)).join('') || welcomeHTML();
+    scrollChat();
     advisorLoaded = true;
     if (state.config.advisorReady) {
       const library = await api('/api/nutrition/library');
@@ -721,8 +725,20 @@ async function loadAdvisor() {
     } else $('#library-status').textContent = '营养师知识服务尚未连接，请联系管理员。';
   } catch (e) { toast(e.message); }
 }
+function welcomeHTML() {
+  return '<div class="chat-welcome"><span>✳</span><h3>你好，今天想聊怎么吃？</h3><p>可以问营养问题，也可以告诉我你的喜好和忌口。<br>我会结合你的记录，陪你慢慢调整饮食。</p></div>';
+}
+function chatTurnHTML(question,result,wrap=true) {
+  return `${wrap ? '<article class="consult-turn">' : ''}<div class="chat-message user-message"><small>你</small><div class="question-text">${esc(question)}</div></div><div class="chat-message assistant-message"><small>✳ 营养师</small>${answerHTML(result)}</div>${wrap ? '</article>' : ''}`;
+}
+function scrollChat() { const log = $('#consult-history'); log.scrollTop = log.scrollHeight; }
+function renderProfileConversations() {
+  $('#conversation-count').textContent = `最近 ${conversationHistory.length} 次`;
+  $('#profile-conversations').innerHTML = conversationHistory.slice().reverse().map(h => `<details><summary>${esc(h.createdAt.slice(0,10))} · ${esc(h.question)}</summary>${answerHTML(h.result)}</details>`).join('') || '<p class="subtle">从第一条消息开始，后续可以继续聊。</p>';
+}
 function renderMemory() {
-  $('#memory-list').innerHTML = memory.entries.map(e => `<article class="memory-entry"><strong>${esc(e.content)}</strong><small>${({preference:'偏好',goal:'目标',restriction:'限制'})[e.kind]} · ${e.status === 'ended' ? '已结束' : e.status === 'review' || e.kind === 'restriction' && e.validUntil && e.validUntil < state.config.today ? '待确认' : e.validFrom > state.config.today ? '尚未生效' : '已记录'} · ${esc(e.validFrom)}${e.validUntil ? ' 至 ' + esc(e.validUntil) : ''}</small><div><button data-memory-edit="${e.id}">修改</button>${e.status !== 'ended' ? `<button data-memory-end="${e.id}">明确结束</button>` : ''}<button data-memory-delete="${e.id}">删除</button></div></article>`).join('') || '<p class="subtle">还没有饮食记忆，按需填写即可。</p>';
+  $('#profile-context-status').textContent = memory.entries.length ? `已记下 ${memory.entries.length} 条个人资料 · 对话自动保存` : '对话会保存到你的个人上下文';
+  $('#memory-list').innerHTML = memory.entries.map(e => `<article class="memory-entry"><strong>${esc(e.content)}</strong><small>${({preference:'偏好',goal:'目标',restriction:'限制'})[e.kind]} · ${e.status === 'ended' ? '已结束' : e.status === 'review' || e.kind === 'restriction' && e.validUntil && e.validUntil < state.config.today ? '待确认' : e.validFrom > state.config.today ? '尚未生效' : '已记录'} · ${e.sourceText?.startsWith("来自营养师对话：") ? "来自对话 · " : "手动记录 · "}${esc(e.validFrom)}${e.validUntil ? ' 至 ' + esc(e.validUntil) : ''}</small><div><button data-memory-edit="${e.id}">修改</button>${e.status !== 'ended' ? `<button data-memory-end="${e.id}">明确结束</button>` : ''}<button data-memory-delete="${e.id}">删除</button></div></article>`).join('') || '<p class="subtle">还没有饮食记忆，按需填写即可。</p>';
 }
 async function saveMemory(entries) {
   memory = await send('/api/nutrition/memory', {revision: memory.revision, entries}); renderMemory();
@@ -750,18 +766,19 @@ document.addEventListener('click', async event => {
   }
   const quick = event.target.closest('[data-question]'); if (quick) $('#consult-question').value = quick.dataset.question;
 });
-$('#new-consult').addEventListener('click', () => { if (consultController) return; continueChat = false; $('#consult-history').innerHTML = ''; $('#consult-question').value = ''; toast('新问题会读取当前饮食记忆与所选日期，不带入旧对话。'); });
+$('#new-consult').addEventListener('click', () => { if (consultController) return; continueChat = false; conversationId = crypto.randomUUID(); $('#consult-history').innerHTML = welcomeHTML(); $('#consult-question').value = ''; toast('已开启新对话，个人资料仍会保留。'); });
 $('#cancel-consult').addEventListener('click', () => consultController?.abort());
 $('#consult-form').addEventListener('submit', async event => {
   event.preventDefault(); if (consultController) return;
   const question = $('#consult-question').value.trim();
+  if (!question || !state.config.advisorReady) return;
   const turn = document.createElement('article'); turn.className = 'consult-turn';
-  turn.innerHTML = `<div class="question-text">${esc(question)}</div><small class="consult-progress">正在整理饮食记录与资料…</small><div class="answer-text"></div>`;
-  $('#consult-history').append(turn);
+  turn.innerHTML = `<div class="chat-message user-message"><small>你</small><div class="question-text">${esc(question)}</div></div><div class="chat-message assistant-message"><small>✳ 营养师</small><small class="consult-progress">正在查看你的资料…</small><div class="answer-text"></div></div>`;
+  $('#consult-history .chat-welcome')?.remove(); $('#consult-history').append(turn); scrollChat();
   consultController = new AbortController(); $('#ask-advisor').disabled = true; $('#cancel-consult').hidden = false; showError('#consult-error', '');
   let completed = false, reader;
   try {
-    const response = await fetch(basePath + '/api/nutrition/consult', {method:'POST', headers:{'Content-Type':'application/json'}, signal:consultController.signal, body:JSON.stringify({question, date:$('#consult-date').value, period:$('#consult-period').value, continue:continueChat, requestId:crypto.randomUUID()})});
+    const response = await fetch(basePath + '/api/nutrition/consult', {method:'POST', headers:{'Content-Type':'application/json'}, signal:consultController.signal, body:JSON.stringify({question, date:$('#consult-date').value, period:$('#consult-period').value, continue:continueChat, conversationId, requestId:crypto.randomUUID()})});
     if (!response.ok) { if (response.status === 401) location.replace(basePath + '/login'); throw new Error((await response.json()).error || '咨询失败'); }
     reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = '';
     while (true) {
@@ -771,16 +788,24 @@ $('#consult-form').addEventListener('submit', async event => {
       while ((index = buffer.indexOf('\n')) >= 0) {
         const line = buffer.slice(0, index); buffer = buffer.slice(index + 1); if (!line.trim()) continue;
         const item = JSON.parse(line);
-        if (item.type === 'answer_delta') turn.querySelector('.answer-text').textContent += item.data.text;
-        if (item.type === 'trace') turn.querySelector('.consult-progress').textContent = item.data.title || '正在查询与核对…';
+        if (item.type === 'answer_delta') { turn.querySelector('.answer-text').textContent += item.data.text; if ($('#consult-history').scrollHeight - $('#consult-history').scrollTop - $('#consult-history').clientHeight < 180) scrollChat(); }
+        if (item.type === 'trace' && turn.querySelector('.consult-progress')) turn.querySelector('.consult-progress').textContent = item.data.title || '正在查询与核对…';
         if (item.type === 'error') throw new Error(item.data.message);
-        if (item.type === 'result') { turn.innerHTML = `<div class="question-text">${esc(question)}</div>${answerHTML(item.data)}`; completed = true; continueChat = true; }
+        if (item.type === 'answer_complete' || item.type === 'result') {
+          turn.innerHTML = chatTurnHTML(question,item.data,false); completed = true; continueChat = true; conversationId = item.data.conversationId || conversationId;
+          if (item.type === 'answer_complete') turn.insertAdjacentHTML('beforeend','<small class="profile-save-note">对话已保存，正在整理个人上下文…</small>');
+          else turn.querySelector('.profile-save-note')?.remove();
+          scrollChat();
+        }
+        if (item.type === 'profile_updated') { memory = item.data.memory; renderMemory(); toast(`已记入个人资料：${item.data.added.join('；')}`); }
+        if (item.type === 'profile_notice') toast(item.data.message);
       }
     }
     if (!completed) throw new Error('回答中断，请重新提问。');
     $('#consult-question').value = '';
+    conversationHistory = await api('/api/nutrition/consultations'); renderProfileConversations();
   } catch(e) {
-    const message = e.name === 'AbortError' ? '已停止生成；当前显示内容未完成。' : e.message;
+    const message = e.name === 'AbortError' ? completed ? '回答已保存，已停止后续资料整理。' : '已停止生成；当前显示内容未完成。' : e.message;
     showError('#consult-error', message); turn.querySelector('.consult-progress')?.remove();
     turn.insertAdjacentHTML('beforeend', `<p class="subtle">${esc(message)}</p>`);
   } finally { if (!completed) await reader?.cancel().catch(() => {}); consultController = null; $('#ask-advisor').disabled = !state.config.advisorReady; $('#cancel-consult').hidden = true; }
@@ -803,3 +828,9 @@ async function loadAdmin() {
   } catch(e) { $('#admin-content').textContent = e.message; }
 }
 ['#admin-user','#admin-date','#admin-period'].forEach(id => $(id).addEventListener('change', () => void loadAdmin()));
+
+$('#open-profile').addEventListener('click', () => $('#profile-dialog').showModal());
+$('#close-profile').addEventListener('click', () => $('#profile-dialog').close());
+$('#consult-question').addEventListener('keydown', event => {
+  if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && window.matchMedia('(min-width:761px)').matches) { event.preventDefault(); if (!consultController && $('#consult-question').value.trim()) $('#consult-form').requestSubmit(); }
+});

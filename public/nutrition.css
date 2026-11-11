@@ -1648,3 +1648,64 @@ dialog > .button {
   .app-header { gap:8px; }
 }
 .halve-button { font-size:11px; padding:5px 7px; margin-top:6px; background:var(--peach); border:0; border-radius:4px; color:var(--accent); }
+
+/* Nutrition chat: a continuous transcript with account-owned profile context. */
+.advisor-mode main { padding-top:24px; }
+.advisor-mode footer { display:none; }
+.advisor-layout { display:block; max-width:880px; margin:0 auto; }
+.advisor-panel { display:grid; grid-template-rows:auto auto minmax(0,1fr) auto; height:calc(100dvh - 145px); min-height:520px; }
+.chat-heading { display:flex; align-items:center; padding:18px 24px; gap:12px; border-bottom:1px solid var(--line); }
+.advisor-avatar { width:40px; height:40px; border-radius:14px; display:grid; place-items:center; background:var(--green); color:white; font-size:22px; }
+.chat-heading h2 { font-size:17px; margin:0; }
+.chat-heading p { margin:5px 0 0; font-size:11px; color:var(--muted); }
+.chat-heading > div:nth-child(2) { flex:1; }
+.chat-heading button { min-height:40px; }
+.chat-record-context { border-bottom:1px solid var(--line); background:#f9f8f3; }
+.chat-record-context > summary { padding:10px 24px; color:var(--muted); cursor:pointer; font-size:12px; }
+.chat-record-context .advisor-meta { padding-bottom:14px; }
+.consult-history { max-height:none; min-height:0; padding:24px; overscroll-behavior:contain; scroll-behavior:smooth; }
+.chat-message { display:flex; flex-direction:column; align-items:flex-start; margin:0 0 20px; }
+.chat-message > small { font-size:11px; color:var(--muted); margin:0 0 7px 4px; }
+.user-message { align-items:flex-end; margin-left:32px; }
+.user-message .question-text { background:#e7ebdf; max-width:90%; border-radius:16px 16px 3px 16px; margin:0; line-height:1.7; padding:12px 16px; }
+.assistant-message { margin-right:16px; }
+.assistant-message .answer-text { background:#f8f5ef; padding:16px; border-radius:3px 16px 16px 16px; width:100%; }
+.assistant-message .sources { width:100%; padding-left:12px; }
+.chat-welcome { padding:32px 8px; text-align:center; }
+.chat-welcome>span { width:48px; height:48px; display:grid; place-items:center; margin:auto; font-size:28px; color:var(--green); background:#edf0e7; border-radius:18px; }
+.chat-welcome h3 { font-family:var(--serif); font-size:23px; font-weight:500; }
+.chat-welcome p { font-size:13px; color:var(--muted); line-height:1.9; }
+.consult-form { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; background:var(--paper); padding:14px 22px; }
+.consult-form textarea { grid-column:1; resize:none; padding:12px; min-height:68px; max-height:120px; border-radius:14px; }
+.consult-form #ask-advisor { grid-column:2; grid-row:1; align-self:end; min-height:46px; }
+.consult-form .quick-questions { grid-column:1/-1; grid-row:2; margin:0; }
+.consult-form .privacy-note,.consult-form .error-box { grid-column:1/-1; margin:0; }
+.consult-form #cancel-consult { grid-column:1/-1; }
+.profile-save-note { color:var(--muted); font-size:11px; }
+#profile-dialog { width:min(600px,calc(100vw - 24px)); padding:24px; }
+#profile-dialog>.subtle { line-height:1.8; }
+#profile-dialog .panel { padding:18px; border-radius:12px; box-shadow:none; }
+.profile-conversations { padding:18px; margin-bottom:18px; }
+.profile-conversations>summary { cursor:pointer; font-size:15px; }
+.profile-conversations details { margin-top:15px; border-top:1px solid var(--line); padding-top:12px; }
+.profile-conversations details summary { font-size:12px; cursor:pointer; line-height:1.8; }
+#conversation-count { display:block; font-size:11px; color:var(--muted); margin-top:7px; }
+@media(max-width:760px) {
+  .advisor-mode main { padding:10px 10px 0; }
+  .advisor-panel { height:calc(100dvh - 150px - env(safe-area-inset-bottom)); min-height:390px; border-radius:16px; }
+  .chat-heading { padding:12px 14px; gap:8px; }
+  .chat-heading p { font-size:10px; }
+  .chat-heading button { font-size:11px; }
+  .chat-heading #new-consult { font-size:22px; min-width:30px; }
+  .advisor-avatar { width:32px; height:36px; border-radius:11px; }
+  .chat-record-context>summary { padding:9px 16px; }
+  .consult-history { padding:16px 12px; }
+  .consult-form { padding:12px; gap:8px; }
+  .consult-form .primary { width:auto; padding:10px 13px; }
+  .consult-form .privacy-note { font-size:9px; }
+  .consult-form textarea { min-height:64px; }
+  .quick-questions { flex-wrap:nowrap; overflow-x:auto; }
+  .quick-questions button { white-space:nowrap; min-height:32px; padding:6px 10px; font-size:11px; }
+  .assistant-message { margin-right:8px; }
+  #profile-dialog { padding:18px; }
+}
