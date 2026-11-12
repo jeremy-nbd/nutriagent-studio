@@ -386,17 +386,13 @@ async function refreshSummary() {
   const epoch = ++state.summaryEpoch;
   state.summaryBusy = false;
   state.stats = null; weekStats = null;
-  $("#week-chart").textContent = "正在读取一周记录…";
+  $("#week-chart").textContent = "正在读取趋势记录…";
   $("#trend-detail").textContent = ""; $("#trend-range").textContent = ""; $("#trend-coverage").textContent = "";
   $("#generate-summary").disabled = true;
   showError("#summary-error", "");
   $("#summary-hint").textContent = "正在读取已确认的饮食…";
   try {
-    const period = state.period;
-    const [stats, week] = await Promise.all([
-      api(`/api/nutrition/overview?date=${date}&period=${period}`),
-      period === 'week' ? Promise.resolve(null) : api(`/api/nutrition/overview?date=${date}&period=week`)
-    ]);
+    const stats = await api(`/api/nutrition/overview?date=${date}&period=${state.period}`);
     if (epoch !== state.summaryEpoch) return;
     state.stats = stats;
     $("#summary-title").textContent =
@@ -417,7 +413,7 @@ async function refreshSummary() {
       state.period === "week"
         ? `本周${stats.recordedDays}天有饮食记录，${stats.missingDays}天未记录。日均按有记录的${stats.recordedDays}天计算；未记录日不按0摄入处理。${stats.notice}`
         : stats.notice;
-    weekStats = week || stats; trendDate = date; renderChart(weekStats);
+    weekStats = trendGroups(stats); trendDate = state.period === 'day' ? weekStats.days.find(d=>d.recorded)?.date || '早餐' : date; renderChart(weekStats);
     $("#period-count").textContent = `${stats.mealCount} 餐`;
     $("#period-list").innerHTML = stats.mealCount
       ? `<div class="meal-list">${stats.days
@@ -443,6 +439,18 @@ async function refreshSummary() {
   }
 }
 const trendMetrics = {count:['记录餐数','餐'],grams:['已知饭量','g'],kcal:['热量','kcal'],protein:['蛋白质','g'],carbs:['碳水','g'],fat:['脂肪','g']};
+function trendGroups(stats) {
+  if (stats.period === 'week') return stats;
+  const days = ['早餐','午餐','晚餐','加餐'].map(slot=>{
+    const records=stats.records.filter(r=>r.slot===slot),items=records.flatMap(r=>r.items);
+    const known=items.filter(i=>typeof i.grams==='number' && Number.isFinite(i.grams));
+    const roundedSum=values=>Math.round(values.reduce((a,b)=>a+b,0)*10)/10;
+    return {date:slot,contextLabel:stats.start+' '+slot,recorded:records.length>0,count:records.length,
+      grams:known.length?roundedSum(known.map(i=>i.grams)):null,unknownPortions:items.length-known.length,
+      totals:records.length?Object.fromEntries(['kcal','protein','carbs','fat'].map(k=>[k,roundedSum(records.map(r=>r.totals[k]))])):null};
+  });
+  return {...stats,days,slotMode:true};
+}
 function trendValue(day) {
   if (!day.recorded) return null;
   const value = trendMetric === 'count' ? day.count : trendMetric === 'grams' ? day.grams : day.totals?.[trendMetric];
@@ -454,20 +462,24 @@ function renderChart(stats) {
   const scale = 10 ** Math.floor(Math.log10(max));
   const top = trendMetric === 'count' ? Math.max(2,Math.ceil(max/2)*2) : Math.ceil(max/scale)*scale;
   const selected = stats.days.find(d=>d.date===trendDate) || stats.days[0]; trendDate = selected.date;
-  $('#trend-range').textContent = `${stats.start.slice(5).replace('-','/')}–${stats.end.slice(5).replace('-','/')} · 周一至周日`;
+  $('#trend-section-title').textContent = stats.slotMode ? '各餐饮食趋势' : '一周饮食趋势';
+  $('#trend-range').textContent = stats.slotMode ? stats.start+' · 按餐次' : `${stats.start.slice(5).replace('-','/')}–${stats.end.slice(5).replace('-','/')} · 周一至周日`;
+  $('#week-chart').setAttribute('aria-label',stats.slotMode?'当天各餐趋势':'七天趋势');
   $('#trend-title').textContent = `${label} · ${unit}`;
-  $('#trend-coverage').textContent = `${stats.recordedDays} / 7 天有记录`;
+  $('#trend-coverage').textContent = stats.slotMode ? `${stats.days.filter(d=>d.recorded).length} / 4 餐次有记录` : `${stats.recordedDays} / 7 天有记录`;
   $('#trend-panel').setAttribute('aria-labelledby','trend-tab-'+trendMetric);
-  $('#week-chart').innerHTML = `<div class="trend-axis" aria-hidden="true"><span>${num(top)}</span><span>${num(top/2)}</span><span>0</span></div><div class="trend-columns">${stats.days.map((d,i)=>{
+  $('#week-chart').innerHTML = `<div class="trend-axis" aria-hidden="true"><span>${num(top)}</span><span>${num(top/2)}</span><span>0</span></div><div class="trend-columns" style="--trend-columns:${stats.days.length}">${stats.days.map((d,i)=>{
     const v=values[i], missing=v===null, partial=trendMetric==='grams'&&d.unknownPortions>0&&v!==null;
     const description=!d.recorded?'未记录':missing?(trendMetric==='grams'?'重量未知':'数值未知'):`${num(v)} ${unit}${partial?'（部分重量）':''}`;
-    return `<button type="button" class="trend-day${d.date===trendDate?' selected':''}" data-trend-date="${esc(d.date)}" aria-pressed="${d.date===trendDate}" aria-label="${esc(d.date+' '+label+' '+description)}"><span class="trend-plot">${missing?'<span class="trend-missing">—</span>':`<span class="trend-stick${v===0?' zero':''}" style="--bar-height:${v/top*100}%"><span class="trend-number">${num(v)}${partial?'*':''}</span></span>`}</span><span class="trend-weekday">${['一','二','三','四','五','六','日'][i]}</span><span class="trend-date">${d.date.slice(5).replace('-','/')}</span></button>`;
+    return `<button type="button" class="trend-day${missing?'':' has-value'}${d.date===trendDate?' selected':''}" data-trend-date="${esc(d.date)}" aria-pressed="${d.date===trendDate}" aria-label="${esc((d.contextLabel||d.date)+' '+label+' '+description)}"><span class="trend-plot">${missing?'':`<span class="trend-stick${v===0?' zero':''}" style="--bar-height:${v/top*100}%"><span class="trend-number">${num(v)}${partial?'*':''}</span></span>`}</span><span class="trend-weekday">${stats.slotMode?d.date:['一','二','三','四','五','六','日'][i]}</span>${stats.slotMode?'':`<span class="trend-date">${d.date.slice(5).replace('-','/')}</span>`}</button>`;
   }).join('')}</div>`;
   renderTrendDetail(selected);
 }
 function renderTrendDetail(day) {
+  $('#trend-detail').hidden = !day.recorded;
+  if (!day.recorded) { $('#trend-detail').innerHTML = ''; return; }
   const [label,unit]=trendMetrics[trendMetric], value=trendValue(day);
-  $('#trend-detail').innerHTML = `<span>${esc(day.date)} · ${label}</span><strong>${!day.recorded?'未记录':value===null?(trendMetric==='grams'?'重量未知':'数值未知'):`${num(value)} <small>${unit}</small>`}</strong><p>${!day.recorded?'这一天没有已保存餐食，不按零摄入计算。':trendMetric==='grams'&&day.unknownPortions?`已记录 ${day.count} 餐，${day.unknownPortions} 项份量未知${value===null?'。':'；图中仅为已知重量。'}`:`来自已保存的 ${day.count} 餐，仅代表已记录部分。`}</p>`;
+  $('#trend-detail').innerHTML = `<span>${esc(day.contextLabel||day.date)} · ${label}</span><strong>${!day.recorded?'未记录':value===null?(trendMetric==='grams'?'重量未知':'数值未知'):`${num(value)} <small>${unit}</small>`}</strong><p>${!day.recorded?'没有已保存餐食，不按零摄入计算。':trendMetric==='grams'&&day.unknownPortions?`已记录 ${day.count} 餐，${day.unknownPortions} 项份量未知${value===null?'。':'；图中仅为已知重量。'}`:`来自已保存的 ${day.count} 餐，仅代表已记录部分。`}</p>`;
 }
 $('#week-chart').addEventListener('click',event=>{
   const button=event.target.closest('[data-trend-date]');if(!button||!weekStats)return;
