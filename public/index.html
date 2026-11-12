@@ -179,15 +179,17 @@
             <span class="coverage-badge" id="coverage-badge"></span>
           </div>
           <div id="summary-metrics" class="metrics"></div>
-          <div id="trend-controls" class="trend-controls" hidden><h3>一周趋势</h3><div class="segmented" role="group" aria-label="趋势指标"><button data-trend="grams" class="active">饭量 · g</button><button data-trend="kcal">热量 · kcal</button></div></div>
-          <div id="week-chart" class="week-chart" hidden></div>
           <p id="summary-coverage" class="summary-coverage"></p>
         </section>
-        <section class="panel daily-panel">
-          <div class="panel-heading"><h2>每天饭量汇总</h2><span class="subtle">仅已保存记录</span></div>
-          <p class="table-hint">左右滑动查看热量及三大营养素 →</p>
-          <div class="daily-table-wrap" tabindex="0" role="region" aria-label="每天饭量汇总表"><table class="daily-table"><thead><tr><th scope="col">日期</th><th scope="col">餐数</th><th scope="col">已知饭量 · g</th><th scope="col">热量 · kcal</th><th scope="col">蛋白质 · g</th><th scope="col">碳水 · g</th><th scope="col">脂肪 · g</th></tr></thead><tbody id="daily-rows"></tbody></table></div>
-          <p class="summary-coverage">饭量为食物总重量。重量未填写时标为未知；只记录部分餐食的日期，数值也只是已记录部分。</p>
+        <section class="panel daily-panel weekly-trends">
+          <div class="panel-heading"><h2>一周饮食趋势</h2><span class="subtle" id="trend-range"></span></div>
+          <div id="trend-controls" class="metric-tabs" role="tablist" aria-label="趋势指标"><button type="button" role="tab" id="trend-tab-count" aria-controls="trend-panel" aria-selected="false" tabindex="-1" data-trend="count" class=""><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 3v7m3-7v7m3-7v7M5 7h6M8 10v11M18 3v18m0-18c-4 4-4 8 0 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>餐数</button><button type="button" role="tab" id="trend-tab-grams" aria-controls="trend-panel" aria-selected="true" tabindex="0" data-trend="grams" class="active"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 9h16l-2 11H6L4 9zM9 9V6a3 3 0 016 0v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>饭量</button><button type="button" role="tab" id="trend-tab-kcal" aria-controls="trend-panel" aria-selected="false" tabindex="-1" data-trend="kcal" class=""><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13 3c1 5-3 5-2 9 2-1 3-2 3-4 5 5 5 12-2 13C3 21 3 13 8 8c0 3 1 4 2 4-1-4 1-6 3-9z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>热量</button><button type="button" role="tab" id="trend-tab-protein" aria-controls="trend-panel" aria-selected="false" tabindex="-1" data-trend="protein" class=""><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 4l8 16M16 4L8 20M7 7h10M7 17h10M9 12h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>蛋白质</button><button type="button" role="tab" id="trend-tab-carbs" aria-controls="trend-panel" aria-selected="false" tabindex="-1" data-trend="carbs" class=""><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21V4m0 8C6 12 5 8 5 6c5 0 7 2 7 6zm0 5c6 0 7-4 7-6-5 0-7 2-7 6z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>碳水</button><button type="button" role="tab" id="trend-tab-fat" aria-controls="trend-panel" aria-selected="false" tabindex="-1" data-trend="fat" class=""><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3C9 7 5 11 5 15a7 7 0 0014 0c0-4-4-8-7-12z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>脂肪</button></div>
+          <div id="trend-panel" role="tabpanel" aria-labelledby="trend-tab-grams">
+            <div class="trend-caption"><h3 id="trend-title">已知饭量 · g</h3><span id="trend-coverage"></span></div>
+            <div id="week-chart" class="nutrition-trend-chart" aria-label="七天趋势"></div>
+            <div id="trend-detail" class="trend-detail" aria-live="polite"></div>
+          </div>
+          <p class="summary-coverage">仅统计已保存的餐食，未记录不代表没吃。饭量为食物总重量；部分份量未知时，仅展示已知部分。</p>
         </section>
         <div class="summary-ai-action"><button class="button primary" id="generate-summary" disabled>✳︎ 让营养师总结 ↗</button><p id="summary-hint">正在读取已确认的饮食…</p></div>
         <div id="summary-error" class="error-box" role="alert" hidden></div>
@@ -239,15 +241,15 @@
               <div class="personal-actions"><button type="button" id="personal-prev" class="button secondary" hidden>上一步</button><button type="button" id="personal-next" class="button secondary">下一步</button><button type="submit" class="button primary">保存已填资料</button><button type="button" id="personal-skip" class="text-button">暂时跳过</button></div>
             </form>
             <div id="personal-pending"></div>
-            <details class="panel"><summary>体重记录</summary><div id="weight-history"></div></details>
-            <details class="panel memory-panel"><summary>饮食偏好与限制 <span>已有记录仍保留，可修改或删除</span></summary><div id="memory-list"></div><form id="memory-form" class="account-form">
+            <details class="panel"><summary><span class="profile-section-title">体重记录</span><span>按日期查看体重变化</span></summary><div id="weight-history"></div></details>
+            <details class="panel memory-panel"><summary><span class="profile-section-title">饮食偏好与限制</span><span>已有记录仍保留，可修改或删除</span></summary><div id="memory-list"></div><form id="memory-form" class="account-form">
               <label>记忆类型<select id="memory-kind"><option value="restriction">忌口或当前限制</option><option value="preference">饮食偏好</option><option value="goal">饮食目标</option></select></label>
               <label>记下什么<input id="memory-content" maxlength="300" required placeholder="例如：花生过敏；不爱吃香菜" /></label>
               <div class="manual-grid"><label>生效日期<input id="memory-start" type="date" required /></label><label>预计结束（选填）<input id="memory-end" type="date" /></label></div>
               <button type="submit" class="button secondary">保存记忆</button><button type="button" id="cancel-memory" class="text-button" hidden>取消修改</button><p id="memory-error" role="alert"></p>
             </form><p class="subtle">限制到期后会提示待确认，不会自动认为已解除。</p></details>
-            <details class="panel profile-conversations"><summary>对话记录 <span id="conversation-count"></span></summary><div id="profile-conversations"></div></details>
-            <details class="panel library-panel"><summary>营养知识库 <span>资料与原页</span></summary><div id="library-status"></div><form id="library-form"><input id="library-query" required maxlength="500" placeholder="输入食物、营养素或饮食问题" /><button class="button secondary">检索</button></form><div id="library-results"></div></details>
+            <details class="panel profile-conversations"><summary><span class="profile-section-title">对话记录</span><span id="conversation-count"></span></summary><div id="profile-conversations"></div></details>
+            <details class="panel library-panel"><summary><span class="profile-section-title">营养知识库</span><span>资料与原页</span></summary><div id="library-status"></div><form id="library-form"><input id="library-query" required maxlength="500" placeholder="输入食物、营养素或饮食问题" /><button class="button secondary">检索</button></form><div id="library-results"></div></details>
           </dialog>
         </div>
       </section>

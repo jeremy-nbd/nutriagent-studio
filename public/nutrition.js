@@ -1,7 +1,7 @@
 import { renderMarkdown } from './markdown.js';
 const basePath = location.pathname.startsWith("/family/") ? "/family" : "";
 let draftKey = "nutriagent:foodDraft";
-let trendMetric = "grams";
+let trendMetric = "grams", weekStats = null, trendDate = null;
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const esc = (value) =>
@@ -385,14 +385,18 @@ async function refreshSummary() {
   if (!date) return;
   const epoch = ++state.summaryEpoch;
   state.summaryBusy = false;
-  state.stats = null;
+  state.stats = null; weekStats = null;
+  $("#week-chart").textContent = "正在读取一周记录…";
+  $("#trend-detail").textContent = ""; $("#trend-range").textContent = ""; $("#trend-coverage").textContent = "";
   $("#generate-summary").disabled = true;
   showError("#summary-error", "");
   $("#summary-hint").textContent = "正在读取已确认的饮食…";
   try {
-    const stats = await api(
-      `/api/nutrition/overview?date=${date}&period=${state.period}`,
-    );
+    const period = state.period;
+    const [stats, week] = await Promise.all([
+      api(`/api/nutrition/overview?date=${date}&period=${period}`),
+      period === 'week' ? Promise.resolve(null) : api(`/api/nutrition/overview?date=${date}&period=week`)
+    ]);
     if (epoch !== state.summaryEpoch) return;
     state.stats = stats;
     $("#summary-title").textContent =
@@ -413,10 +417,7 @@ async function refreshSummary() {
       state.period === "week"
         ? `本周${stats.recordedDays}天有饮食记录，${stats.missingDays}天未记录。日均按有记录的${stats.recordedDays}天计算；未记录日不按0摄入处理。${stats.notice}`
         : stats.notice;
-    $("#week-chart").hidden = state.period !== "week";
-    $("#trend-controls").hidden = state.period !== "week";
-    renderDailyTable(stats);
-    if (state.period === "week") renderChart(stats);
+    weekStats = week || stats; trendDate = date; renderChart(weekStats);
     $("#period-count").textContent = `${stats.mealCount} 餐`;
     $("#period-list").innerHTML = stats.mealCount
       ? `<div class="meal-list">${stats.days
@@ -435,25 +436,45 @@ async function refreshSummary() {
 
   } catch (error) {
     if (epoch === state.summaryEpoch) {
+      $("#week-chart").textContent = "趋势暂时无法加载，请重新选择日期重试。";
       showError("#summary-error", error.message);
       $('#summary-hint').textContent = '读取记录失败，请稍后重试。';
     }
   }
 }
-function renderDailyTable(stats) {
-  $("#daily-rows").innerHTML = stats.days.map(d => `<tr class="${d.recorded ? "" : "unrecorded"}"><th scope="row">${esc(d.date.slice(5).replace("-", "/"))}<small>${d.recorded ? "已记录" : "未记录"}</small></th><td>${d.recorded ? d.count : "—"}</td><td>${d.recorded ? num(d.grams) : "—"}${d.unknownPortions ? `<small>${d.unknownPortions} 项重量未知</small>` : ""}</td>${nutrients.map(([k]) => `<td>${num(d.totals?.[k])}</td>`).join("")}</tr>`).join("");
+const trendMetrics = {count:['记录餐数','餐'],grams:['已知饭量','g'],kcal:['热量','kcal'],protein:['蛋白质','g'],carbs:['碳水','g'],fat:['脂肪','g']};
+function trendValue(day) {
+  if (!day.recorded) return null;
+  const value = trendMetric === 'count' ? day.count : trendMetric === 'grams' ? day.grams : day.totals?.[trendMetric];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 function renderChart(stats) {
-  const weight = trendMetric === "grams";
-  const value = d => weight ? d.grams : d.totals?.kcal;
-  const max = Math.max(1, ...stats.days.map(d => value(d) ?? 0));
-  const weekdays = ["一", "二", "三", "四", "五", "六", "日"];
-  $("#week-chart").innerHTML = stats.days.map((d, i) => {
-    const v = value(d);
-    const title = !d.recorded ? "未记录" : v == null ? "重量未知" : `${num(v)} ${weight ? "g" : "kcal"}${weight && d.unknownPortions ? "（部分重量）" : ""}`;
-    return `<div class="week-day" title="${esc(d.date + " " + title)}" aria-label="${esc(d.date + " " + title)}">${v != null ? `<div class="week-column"><span class="week-value">${num(v)}${weight && d.unknownPortions ? "*" : ""}</span><div class="week-bar" style="height:${Math.max(2, v / max * 90)}px"></div></div>` : `<div class="week-column missing">${d.recorded ? "重量未知" : "未记录"}</div>`}<div class="week-label">周${weekdays[i]}<small>${d.date.slice(5).replace("-", "/")}</small></div></div>`;
-  }).join("") + (weight && stats.days.some(d => d.unknownPortions) ? '<p class="chart-note">* 仅包含已知重量；未知份量未按 0 克计算。</p>' : "");
+  const [label,unit] = trendMetrics[trendMetric];
+  const values = stats.days.map(trendValue), max = Math.max(1,...values.filter(v=>v!==null));
+  const scale = 10 ** Math.floor(Math.log10(max));
+  const top = trendMetric === 'count' ? Math.max(2,Math.ceil(max/2)*2) : Math.ceil(max/scale)*scale;
+  const selected = stats.days.find(d=>d.date===trendDate) || stats.days[0]; trendDate = selected.date;
+  $('#trend-range').textContent = `${stats.start.slice(5).replace('-','/')}–${stats.end.slice(5).replace('-','/')} · 周一至周日`;
+  $('#trend-title').textContent = `${label} · ${unit}`;
+  $('#trend-coverage').textContent = `${stats.recordedDays} / 7 天有记录`;
+  $('#trend-panel').setAttribute('aria-labelledby','trend-tab-'+trendMetric);
+  $('#week-chart').innerHTML = `<div class="trend-axis" aria-hidden="true"><span>${num(top)}</span><span>${num(top/2)}</span><span>0</span></div><div class="trend-columns">${stats.days.map((d,i)=>{
+    const v=values[i], missing=v===null, partial=trendMetric==='grams'&&d.unknownPortions>0&&v!==null;
+    const description=!d.recorded?'未记录':missing?(trendMetric==='grams'?'重量未知':'数值未知'):`${num(v)} ${unit}${partial?'（部分重量）':''}`;
+    return `<button type="button" class="trend-day${d.date===trendDate?' selected':''}" data-trend-date="${esc(d.date)}" aria-pressed="${d.date===trendDate}" aria-label="${esc(d.date+' '+label+' '+description)}"><span class="trend-plot">${missing?'<span class="trend-missing">—</span>':`<span class="trend-stick${v===0?' zero':''}" style="--bar-height:${v/top*100}%"><span class="trend-number">${num(v)}${partial?'*':''}</span></span>`}</span><span class="trend-weekday">${['一','二','三','四','五','六','日'][i]}</span><span class="trend-date">${d.date.slice(5).replace('-','/')}</span></button>`;
+  }).join('')}</div>`;
+  renderTrendDetail(selected);
 }
+function renderTrendDetail(day) {
+  const [label,unit]=trendMetrics[trendMetric], value=trendValue(day);
+  $('#trend-detail').innerHTML = `<span>${esc(day.date)} · ${label}</span><strong>${!day.recorded?'未记录':value===null?(trendMetric==='grams'?'重量未知':'数值未知'):`${num(value)} <small>${unit}</small>`}</strong><p>${!day.recorded?'这一天没有已保存餐食，不按零摄入计算。':trendMetric==='grams'&&day.unknownPortions?`已记录 ${day.count} 餐，${day.unknownPortions} 项份量未知${value===null?'。':'；图中仅为已知重量。'}`:`来自已保存的 ${day.count} 餐，仅代表已记录部分。`}</p>`;
+}
+$('#week-chart').addEventListener('click',event=>{
+  const button=event.target.closest('[data-trend-date]');if(!button||!weekStats)return;
+  trendDate=button.dataset.trendDate;
+  $('#week-chart').querySelectorAll('[data-trend-date]').forEach(b=>{b.classList.toggle('selected',b===button);b.setAttribute('aria-pressed',String(b===button));});
+  renderTrendDetail(weekStats.days.find(d=>d.date===trendDate));
+});
 async function generateSummary() {
   if (state.summaryBusy || !state.stats?.mealCount || !state.config.advisorReady) return;
   if (consultController) { switchView('advisor'); toast('营养师正在回答，请等本次完成后再生成总结。'); return; }
@@ -641,8 +662,8 @@ $("#manual-form").addEventListener("submit", async event => {
 });
 document.querySelectorAll("[data-trend]").forEach(button => button.addEventListener("click", () => {
   trendMetric = button.dataset.trend;
-  document.querySelectorAll("[data-trend]").forEach(b => b.classList.toggle("active", b === button));
-  if (state.stats) renderChart(state.stats);
+  document.querySelectorAll("[data-trend]").forEach(b => { b.classList.toggle("active", b === button); b.setAttribute('aria-selected',String(b===button)); b.tabIndex=b===button?0:-1; });
+  if (weekStats) renderChart(weekStats);
 }));
 $("#account-button").addEventListener("click", () => $("#account-dialog").showModal());
 $("#close-account").addEventListener("click", () => $("#account-dialog").close());
@@ -909,3 +930,9 @@ document.addEventListener('click',async event=>{
   } catch(e){toast(e.message);} finally{button.disabled=false;}
 });
 $('#profile-dialog').addEventListener('close',closePersonalForm);
+
+$('#trend-controls').addEventListener('keydown',event=>{
+  const tabs=$$('[data-trend]'),index=tabs.indexOf(event.target);if(index<0)return;
+  const next=event.key==='ArrowRight'?(index+1)%tabs.length:event.key==='ArrowLeft'?(index+tabs.length-1)%tabs.length:event.key==='Home'?0:event.key==='End'?tabs.length-1:null;
+  if(next!==null){event.preventDefault();tabs[next].focus();tabs[next].click();}
+});
