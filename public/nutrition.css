@@ -1900,3 +1900,39 @@ input[type=date]::-webkit-date-and-time-value { text-align:left; }
 .admin-more>summary { padding:0; font-size:14px; font-weight:500; }
 .admin-more>p { font-size:12px; line-height:1.8; }
 .admin-records>summary { font-size:12px; }
+/* Personal facts: compact grouped review, two small optional steps, explicit chat consent. */
+.personal-form { margin:20px 0; }
+.personal-form fieldset { border:0; margin:0; padding:0; min-width:0; }
+.personal-form legend { font-weight:600; margin-bottom:16px; }
+.personal-form label,.profile-proposal label { display:flex; flex-direction:column; gap:7px; font-size:13px; margin-bottom:14px; min-width:0; }
+.personal-form input,.personal-form select,.profile-proposal input,.profile-proposal select { width:100%; min-width:0; box-sizing:border-box; min-height:44px; }
+.personal-form input[hidden],.personal-form [hidden] { display:none; }
+.personal-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 12px; }
+.weight-input { display:grid; grid-template-columns:minmax(0,1fr) 92px; gap:12px; }
+.personal-step { font-size:12px; color:var(--accent); }
+.personal-actions { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 8px; }
+.personal-actions .button { padding:12px 16px; min-height:44px; }
+.personal-group { margin:20px 0; }
+.personal-group h3 { font-size:14px; margin-bottom:10px; }
+.personal-group dl { margin:0; }
+.personal-group dl>div { display:grid; grid-template-columns:110px minmax(0,1fr); gap:12px; padding:10px 0; border-bottom:1px solid #eee; font-size:13px; }
+.personal-group dt { color:var(--muted); }
+.personal-group dd { margin:0; overflow-wrap:anywhere; }
+.personal-group small,.weight-history small { display:block; color:var(--muted); font-size:10px; margin-top:5px; }
+.weight-history { list-style:none; padding:0; }
+.weight-history li { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid #eee; }
+.weight-history span { display:block; font-size:12px; margin-top:4px; }
+.profile-proposal { background:#faf8f4; border:1px solid #e9e2d8; padding:18px; border-radius:16px; margin:18px 0; }
+.profile-proposal h3 { font-size:16px; margin:0 0 8px; }
+.profile-proposal blockquote { margin:12px 0; padding-left:12px; border-left:2px solid #c7b7a4; font-size:12px; color:var(--muted); overflow-wrap:anywhere; }
+.profile-proposal .subtle,.profile-privacy { font-size:12px; line-height:1.75; }
+.profile-proposal small { color:var(--muted); overflow-wrap:anywhere; }
+.chat-profile-proposals { width:100%; }
+#profile-dialog { max-height:88dvh; overflow-y:auto; }
+#personal-error { margin:12px 0; }
+/* Compact message-only composer; date/range is supplied by summary actions. */
+.chat-composer { display:flex; align-items:flex-end; gap:8px; padding:6px; border-radius:26px; }
+.consult-form .chat-composer textarea { flex:1; min-width:0; width:auto; min-height:36px; height:36px; padding:6px 10px; line-height:24px; box-sizing:border-box; }
+.chat-composer .composer-actions { flex-shrink:0; }
+#profile-dialog:has(#personal-form:not([hidden]))>.panel,
+#profile-dialog:has(#personal-form:not([hidden]))>#personal-pending { display:none; }

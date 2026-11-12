@@ -159,25 +159,27 @@ class AdminTests(FamilyHttpTests):
 class ChatContextTests(AdvisorTests):
     def ask(self,question='今天怎么吃',**kw):
         return list(self.advisor.consult(dict(question=question,date='2026-11-11',requestId=str(uuid.uuid4()),**kw)))
-    def test_auto_profile_exact_quotes_and_persistence(self):
+    def test_profile_proposals_require_confirmation_and_persist(self):
         from unittest.mock import patch
         from nutriagent.advisor import Advisor
-        with patch.object(self.n.client,'structured',return_value={'entries':[
-            {'kind':'preference','quote':'我不喜欢香菜'},
-            {'kind':'restriction','quote':'我对花生过敏'},
-            {'kind':'restriction','quote':'我有糖尿病'}]}):
+        with patch.object(self.n.client,'structured',return_value={'proposals':[
+            {'values':{'preferences':'不喜欢香菜'},'quote':'我不喜欢香菜'},
+            {'values':{'allergies':'花生过敏'},'quote':'我对花生过敏'},
+            {'values':{'conditions':'糖尿病'},'quote':'我有糖尿病'}]}):
             events=self.ask('我不喜欢香菜。我对花生过敏。明天怎么吃？')
-            self.assertEqual([e['type'] for e in events],['answer_delta','answer_complete','profile_updated','result'])
-            entries=self.advisor.profile()['entries']
-            self.assertEqual([e['content'] for e in entries],['我不喜欢香菜','我对花生过敏'])
-            self.assertEqual(entries[1]['status'],'review')
-            self.assertTrue(all(e['sourceText'].startswith('来自营养师对话：') for e in entries))
+            self.assertEqual([e['type'] for e in events],['answer_delta','answer_complete','profile_proposed','result'])
+            p=self.advisor.persona.get()
+            self.assertEqual(p['fields'],{})
+            self.assertEqual(len(p['pending']),2)
+            self.assertEqual(self.advisor.profile()['entries'],[])
             self.ask('我不喜欢香菜。我对花生过敏。')
-            self.assertEqual(len(self.advisor.profile()['entries']),2)
+            self.assertEqual(len(self.advisor.persona.get()['pending']),2)
         restored=Advisor(self.root,self.n,self.advisor.bridge)
-        self.assertEqual(restored.profile(),self.advisor.profile())
-        self.assertEqual(len(restored.conversations()),2)
-        self.assertEqual(len(self.calls[-1]['memory']['entries']),2)
+        self.assertEqual(restored.persona.get(),self.advisor.persona.get())
+        self.assertNotIn('花生过敏',self.calls[-1]['profile']['diet'])
+        accepted=restored.persona.update(dict(revision=p['revision'],action='accept',id=p['pending'][1]['id']))
+        self.assertEqual(accepted['fields']['allergies']['value'],'花生过敏')
+        self.assertEqual(accepted['fields']['allergies']['source'],'chat')
     def test_questions_hypotheses_and_third_parties_not_facts(self):
         from unittest.mock import patch
         with patch.object(self.n.client,'structured') as model:

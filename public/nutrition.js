@@ -462,7 +462,7 @@ async function generateSummary() {
   try {
     const ready = await switchView('advisor');
     if (!ready) return;
-    $('#consult-date').value = date; $('#consult-period').value = period; updateChatRange();
+    $('#consult-date').value = date; $('#consult-period').value = period;
     continueChat = false; conversationId = crypto.randomUUID();
     $('#consult-history').innerHTML = '';
     $('#consult-question').value = `请总结 ${date}${period === 'week' ? ' 所在周（周一至周日）' : ' 当天'}的饮食和营养，看看热量、三大营养素及搭配情况，并建议接下来怎么吃。`;
@@ -546,7 +546,7 @@ document.addEventListener("click", async (e) => {
     $("#consult-period").value = "day";
     const record = state.day?.records.find(r => r.date === consultMeal.dataset.consultDate && r.id === consultMeal.closest("[data-record-id]").dataset.recordId);
     $("#consult-question").value = `请结合当天记录，解读${record?.slot || "这餐"}的${record?.title || "饮食"}，建议下一餐怎么搭配。`;
-    updateChatRange(); resizeComposer(); switchView("advisor");
+     resizeComposer(); switchView("advisor");
   }
   const half = e.target.closest("[data-halve]");
   if (half) { const input = $(`[data-grams="${half.dataset.halve}"]`); if (Number(input.value) > 0) { input.value = Math.round(Number(input.value) * 5) / 10; recalculateDraft(); } }
@@ -587,7 +587,7 @@ async function boot() {
     $("#connection").classList.toggle("offline", !c.textReady);
     $("#meal-date").value = c.today;
     $("#summary-date").value = c.today;
-    $("#consult-date").value = c.today; $("#admin-date").value = c.today; $("#memory-start").value = c.today; updateChatRange();
+    $("#consult-date").value = c.today; $("#admin-date").value = c.today; $("#memory-start").value = c.today;
     $("#ask-advisor").disabled = !c.advisorReady;
     const hour = Number(
       new Intl.DateTimeFormat("en-GB", {
@@ -675,11 +675,14 @@ async function loadAdvisor() {
   if (advisorLoading) return advisorLoading;
   advisorLoading = (async () => {
   try {
-    const [m, history] = await Promise.all([api('/api/nutrition/memory'), api('/api/nutrition/consultations')]);
+    const [m, history, p] = await Promise.all([api('/api/nutrition/memory'), api('/api/nutrition/consultations'), api('/api/nutrition/profile')]);
+    personal = p;
     memory = m; conversationHistory = history; renderMemory(); renderProfileConversations();
     conversationId = history.at(-1)?.conversationId || null;
     const current = conversationId ? history.filter(h => h.conversationId === conversationId) : history;
     $('#consult-history').innerHTML = current.slice(-30).map(h => chatTurnHTML(h.question,h.result)).join('') || welcomeHTML();
+    renderPersonal(); renderProposals();
+    if (!personal.onboarding) openPersonal(true);
     scrollChat();
     advisorLoaded = true;
     if (state.config.advisorReady) {
@@ -705,7 +708,7 @@ function renderProfileConversations() {
   $('#profile-conversations').innerHTML = conversationHistory.slice().reverse().map(h => `<details><summary>${esc(h.createdAt.slice(0,10))} · ${esc(h.question)}</summary>${answerHTML(h.result)}</details>`).join('') || '<p class="subtle">从第一条消息开始，后续可以继续聊。</p>';
 }
 function renderMemory() {
-  $('#profile-context-status').textContent = memory.entries.length ? `记住了 ${memory.entries.length} 条饮食偏好与资料` : '对话与个人资料自动保存';
+  $('#profile-context-status').textContent = memory.entries.length ? `记住了 ${memory.entries.length} 条饮食偏好与资料` : '对话已保存 · 资料由你确认';
   $('#memory-list').innerHTML = memory.entries.map(e => `<article class="memory-entry"><strong>${esc(e.content)}</strong><small>${({preference:'偏好',goal:'目标',restriction:'限制'})[e.kind]} · ${e.status === 'ended' ? '已结束' : e.status === 'review' || e.kind === 'restriction' && e.validUntil && e.validUntil < state.config.today ? '待确认' : e.validFrom > state.config.today ? '尚未生效' : '已记录'} · ${e.sourceText?.startsWith("来自营养师对话：") ? "来自对话 · " : "手动记录 · "}${esc(e.validFrom)}${e.validUntil ? ' 至 ' + esc(e.validUntil) : ''}</small><div><button data-memory-edit="${e.id}">修改</button>${e.status !== 'ended' ? `<button data-memory-end="${e.id}">明确结束</button>` : ''}<button data-memory-delete="${e.id}">删除</button></div></article>`).join('') || '<p class="subtle">还没有饮食记忆，按需填写即可。</p>';
 }
 async function saveMemory(entries) {
@@ -734,7 +737,7 @@ document.addEventListener('click', async event => {
   }
   const quick = event.target.closest('[data-question]'); if (quick) { $('#consult-question').value = quick.dataset.question; resizeComposer(); $('#consult-question').focus(); }
 });
-$('#new-consult').addEventListener('click', () => { if (consultController) return; continueChat = false; conversationId = crypto.randomUUID(); $('#consult-history').innerHTML = welcomeHTML(); $('#consult-question').value = ''; resizeComposer(); toast('已开启新对话，个人资料仍会保留。'); });
+$('#new-consult').addEventListener('click', () => { if (consultController) return; continueChat = false; conversationId = crypto.randomUUID(); $('#consult-history').innerHTML = welcomeHTML(); renderProposals(); $('#consult-question').value = ''; resizeComposer(); toast('已开启新对话，个人资料仍会保留。'); });
 $('#cancel-consult').addEventListener('click', () => consultController?.abort());
 $('#consult-form').addEventListener('submit', async event => {
   event.preventDefault(); if (consultController) return;
@@ -765,13 +768,13 @@ $('#consult-form').addEventListener('submit', async event => {
           else turn.querySelector('.profile-save-note')?.remove();
           scrollChat();
         }
-        if (item.type === 'profile_updated') { memory = item.data.memory; renderMemory(); toast(`已记入个人资料：${item.data.added.join('；')}`); }
+        if (item.type === 'profile_proposed') { personal = item.data.personal; renderPersonal(); }
         if (item.type === 'profile_notice') toast(item.data.message);
       }
     }
     if (!completed) throw new Error('回答中断，请重新提问。');
     $('#consult-question').value = ''; resizeComposer();
-    conversationHistory = await api('/api/nutrition/consultations'); renderProfileConversations();
+    conversationHistory = await api('/api/nutrition/consultations'); renderProfileConversations(); renderProposals(); scrollChat();
   } catch(e) {
     const message = e.name === 'AbortError' ? completed ? '回答已保存，已停止后续资料整理。' : '已停止生成；当前显示内容未完成。' : e.message;
     showError('#consult-error', message); turn.querySelector('.consult-progress')?.remove();
@@ -792,12 +795,12 @@ async function loadAdmin() {
     if (!adminLoaded) { const users = await api('/api/admin/users'); $('#admin-user').innerHTML = users.map(u => `<option value="${esc(u.id)}">${esc(u.name)}</option>`).join(''); adminLoaded = true; }
     const result = await api(`/api/admin/data?userId=${encodeURIComponent($('#admin-user').value)}&date=${$('#admin-date').value}&period=${$('#admin-period').value}`);
     if (epoch !== adminEpoch) return;
-    $('#admin-content').innerHTML = `<section class="panel admin-panel"><h2>${esc(result.user.name)} · ${result.stats.mealCount} 餐</h2><div class="metrics">${metricHTML(result.stats.totals)}</div><div class="daily-table-wrap"><table class="daily-table"><thead><tr><th>日期</th><th>餐数</th><th>已知饭量 · g</th><th>热量 · kcal</th></tr></thead><tbody>${result.stats.days.map(d => `<tr><th title="${esc(d.date)}">${esc(d.date.slice(5).replace("-","/"))}<small>${d.recorded ? '已记录' : '未记录'}</small></th><td>${d.count || '—'}</td><td>${num(d.grams)}${d.unknownPortions ? `<small>${d.unknownPortions} 项重量未知</small>` : ''}</td><td>${num(d.totals?.kcal)}</td></tr>`).join('')}</tbody></table></div>${result.stats.records.length ? `<details class="admin-records"><summary>本期餐食 · ${result.stats.mealCount} 餐</summary>${result.stats.records.map(r => mealHTML(r,false)).join('')}</details>` : '<p class="subtle">此日期范围没有记录。</p>'}${result.drafts.length ? `<p class="subtle">另有 ${result.drafts.length} 条未确认草稿，未计入统计。</p>` : ''}</section><details class="panel admin-panel admin-more"><summary>饮食偏好</summary>${result.memory.entries.map(e => `<p>${esc(e.content)} <small>· ${({active:'已记录',review:'待确认',ended:'已结束'})[e.status] || '待确认'}</small></p>`).join('') || '<p>暂无记忆。</p>'}</details><details class="panel admin-panel admin-more"><summary>咨询记录</summary>${result.consultations.slice().reverse().map(h => `<details><summary>${esc(h.createdAt.slice(0,10))} · ${esc(h.question)}</summary>${answerHTML(h.result)}</details>`).join('') || '<p>暂无咨询。</p>'}</details>`;
+    $('#admin-content').innerHTML = `<section class="panel admin-panel"><h2>${esc(result.user.name)} · ${result.stats.mealCount} 餐</h2><div class="metrics">${metricHTML(result.stats.totals)}</div><div class="daily-table-wrap"><table class="daily-table"><thead><tr><th>日期</th><th>餐数</th><th>已知饭量 · g</th><th>热量 · kcal</th></tr></thead><tbody>${result.stats.days.map(d => `<tr><th title="${esc(d.date)}">${esc(d.date.slice(5).replace("-","/"))}<small>${d.recorded ? '已记录' : '未记录'}</small></th><td>${d.count || '—'}</td><td>${num(d.grams)}${d.unknownPortions ? `<small>${d.unknownPortions} 项重量未知</small>` : ''}</td><td>${num(d.totals?.kcal)}</td></tr>`).join('')}</tbody></table></div>${result.stats.records.length ? `<details class="admin-records"><summary>本期餐食 · ${result.stats.mealCount} 餐</summary>${result.stats.records.map(r => mealHTML(r,false)).join('')}</details>` : '<p class="subtle">此日期范围没有记录。</p>'}${result.drafts.length ? `<p class="subtle">另有 ${result.drafts.length} 条未确认草稿，未计入统计。</p>` : ''}</section><details class="panel admin-panel admin-more"><summary>个人档案</summary>${personalSummaryHTML(result.personal)}${weightHistoryHTML(result.personal, false)}</details><details class="panel admin-panel admin-more"><summary>饮食偏好</summary>${result.memory.entries.map(e => `<p>${esc(e.content)} <small>· ${({active:'已记录',review:'待确认',ended:'已结束'})[e.status] || '待确认'}</small></p>`).join('') || '<p>暂无记忆。</p>'}</details><details class="panel admin-panel admin-more"><summary>咨询记录</summary>${result.consultations.slice().reverse().map(h => `<details><summary>${esc(h.createdAt.slice(0,10))} · ${esc(h.question)}</summary>${answerHTML(h.result)}</details>`).join('') || '<p>暂无咨询。</p>'}</details>`;
   } catch(e) { $('#admin-content').textContent = e.message; }
 }
 ['#admin-user','#admin-date','#admin-period'].forEach(id => $(id).addEventListener('change', () => void loadAdmin()));
 
-$('#open-profile').addEventListener('click', () => $('#profile-dialog').showModal());
+$('#open-profile').addEventListener('click', async () => { if (await loadAdvisor()) { await refreshPersonal(); $('#profile-dialog').showModal(); } });
 $('#close-profile').addEventListener('click', () => $('#profile-dialog').close());
 $('#consult-question').addEventListener('keydown', event => {
   if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && window.matchMedia('(min-width:761px)').matches) { event.preventDefault(); if (!consultController && $('#consult-question').value.trim()) $('#consult-form').requestSubmit(); }
@@ -806,15 +809,103 @@ $('#consult-question').addEventListener('keydown', event => {
 function resizeComposer() {
   const input = $('#consult-question');
   input.style.height = 'auto';
-  input.style.height = Math.min(160, Math.max(48, input.scrollHeight)) + 'px';
-}
-function updateChatRange() {
-  const date = $('#consult-date').value;
-  $('#chat-range-label').textContent = $('#consult-period').value === 'week' ? (date === state.config?.today ? '本周饮食' : date.slice(5).replace('-', '/') + ' 所在周') : (date === state.config?.today ? '今日饮食' : date.slice(5).replace('-', '/') + ' 饮食');
+  input.style.height = Math.min(160, Math.max(36, input.scrollHeight)) + 'px';
 }
 $('#consult-question').addEventListener('input', resizeComposer);
-$('#chat-record-toggle').addEventListener('click', () => {
-  const panel = $('#chat-context-panel'); panel.hidden = !panel.hidden;
-  $('#chat-record-toggle').setAttribute('aria-expanded', String(!panel.hidden));
+
+// One confirmed account profile, whether information starts in a form or a conversation.
+let personal = {revision:0,onboarding:false,fields:{},weights:[],pending:[]};
+const personalLabels = {age:'年龄',sex:'性别',height:'身高（厘米）',weight:'体重（公斤）',hometown:'家乡',residence:'常住地',preferences:'口味偏好',goal:'当前目标',conditions:'疾病史（自述）',allergies:'食物过敏（自述）',restrictions:'医生交代的饮食限制'};
+const healthKeys = ['conditions','allergies','restrictions'];
+$('#health-fields').innerHTML = healthKeys.map(k => `<label>${personalLabels[k]}<select name="${k}Status" aria-label="${personalLabels[k]}"><option value="">暂未填写</option><option value="none">无</option><option value="yes">有，请补充</option><option value="unknown">不清楚</option><option value="private">暂不提供</option></select><input name="${k}" aria-label="${personalLabels[k]}详情" maxlength="300" placeholder="记录你的自述或医生交代的内容" hidden /></label>`).join('');
+const personalForm = $('#personal-form');
+for (const k of healthKeys) personalForm.elements[k+'Status'].addEventListener('change', () => { personalForm.elements[k].hidden = personalForm.elements[k+'Status'].value !== 'yes'; });
+function personalSummaryHTML(p) {
+  if (!p) return '<p class="subtle">暂无资料</p>';
+  const groups = [['身体情况',['age','sex','height']],['饮食习惯',['hometown','residence','preferences']],['健康注意事项',healthKeys],['当前目标',['goal']]];
+  return groups.map(([title,keys]) => `<section class="personal-group"><h3>${title}</h3><dl>${keys.map(k => { const f=p.fields[k]; return `<div><dt>${personalLabels[k]}</dt><dd>${f ? esc(String(f.value)) : '<span class="subtle">未填写</span>'}${f ? `<small>${f.source === 'chat' ? '来自对话 · 已确认' : '手动填写'} · ${esc(f.updatedOn)}</small>` : ''}</dd></div>`; }).join('')}</dl></section>`).join('');
+}
+function weightHistoryHTML(p,editable=true) {
+  return p?.weights.length ? `<ul class="weight-history">${p.weights.slice().reverse().map(w => `<li><div><strong>${num(w.value)} 公斤</strong><span>${num(w.value*2)} 斤 · ${esc(w.date)}</span><small>${w.source === 'chat' ? '来自对话 · 已确认' : '手动填写'}</small></div>${editable ? `<button class="text-button" type="button" data-delete-weight="${esc(w.id)}">删除</button>` : ''}</li>`).join('')}</ul>` : '<p class="subtle">还没有体重记录。</p>';
+}
+function renderPersonal() {
+  $('#personal-summary').innerHTML = personalSummaryHTML(personal);
+  $('#weight-history').innerHTML = weightHistoryHTML(personal);
+  $('#profile-context-status').textContent = `个人资料 ${Object.keys(personal.fields).length} 项${personal.pending.length ? ` · ${personal.pending.length} 条待确认` : ' · 随时可修改'}`;
+  $('#personal-pending').innerHTML = proposalsHTML();
+}
+function proposalsHTML() {
+  return personal.pending.map(p => `<section class="profile-proposal" data-proposal="${esc(p.id)}"><h3>要记住这些信息吗？</h3><p class="subtle">确认后用于后续建议，可能更新已有资料。${esc(p.date)}</p><blockquote>${esc(p.quote)}</blockquote><div class="proposal-fields">${Object.entries(p.values).map(([k,v]) => `<label>${personalLabels[k]}${k === 'sex' ? `<select data-fact="${k}">${['男','女','暂不提供'].map(o=>`<option${o===v?' selected':''}>${o}</option>`).join('')}</select>` : `<input data-fact="${k}" value="${esc(String(v))}" maxlength="300" ${['age','height','weight'].includes(k) ? 'type="number" step="any" inputmode="decimal"' : ''} />`}${personal.fields[k] ? `<small>已存：${esc(String(personal.fields[k].value))}</small>` : ''}</label>`).join('')}</div><div class="personal-actions"><button type="button" class="button primary" data-accept-profile="${esc(p.id)}">确认保存</button><button type="button" class="text-button" data-reject-profile="${esc(p.id)}">仅本次使用</button></div><p class="subtle">可直接修改上面的内容；仅本次使用不会写入个人档案，聊天原文仍保留。</p></section>`).join('');
+}
+function renderProposals() {
+  $('#consult-history .chat-profile-proposals')?.remove();
+  if (personal.pending.length) {
+    $('#consult-history .chat-welcome')?.remove();
+    $('#consult-history').insertAdjacentHTML('beforeend', `<div class="chat-profile-proposals">${proposalsHTML()}</div>`);
+  }
+}
+async function refreshPersonal() { personal = await api('/api/nutrition/profile'); renderPersonal(); renderProposals(); }
+async function changePersonal(data) {
+  try { personal = await send('/api/nutrition/profile', {revision:personal.revision,...data}); renderPersonal(); renderProposals(); }
+  catch(e) { await refreshPersonal().catch(()=>{}); throw e; }
+}
+function personalStep(second) {
+  $('#personal-step-one').hidden = second; $('#personal-step-two').hidden = !second;
+  $('#personal-next').hidden = second; $('#personal-prev').hidden = !second;
+  $('#personal-step-label').textContent = second ? '2 / 2 · 饮食习惯与注意事项' : '1 / 2 · 基本情况';
+}
+function openPersonal(first=false) {
+  personalForm.reset(); personalStep(false); showError('#personal-error','');
+  for (const [k,f] of Object.entries(personal.fields)) {
+    if (healthKeys.includes(k)) {
+      const status = ({'无':'none','不清楚':'unknown','暂不提供':'private'})[f.value] || 'yes';
+      personalForm.elements[k+'Status'].value = status; personalForm.elements[k].value = status === 'yes' ? f.value : '';
+    } else if (personalForm.elements[k]) personalForm.elements[k].value = f.value;
+  }
+  for (const k of healthKeys) personalForm.elements[k].hidden = personalForm.elements[k+'Status'].value !== 'yes';
+  personalForm.elements.weightDate.value = state.config.today; personalForm.elements.weightDate.max = state.config.today;
+  personalForm.dataset.revision = String(personal.revision);
+  personalForm.hidden = false; $('#personal-summary').hidden = true; $('#edit-personal').hidden = true;
+  $('#personal-intro').textContent = first ? '先认识一下你，让建议更适合你' : '更新我的个人资料';
+  if (!$('#profile-dialog').open) $('#profile-dialog').showModal();
+  $('#profile-dialog').scrollTop = 0;
+}
+function closePersonalForm() { personalForm.hidden = true; $('#personal-summary').hidden = false; $('#edit-personal').hidden = false; }
+$('#edit-personal').addEventListener('click',()=>openPersonal());
+$('#personal-next').addEventListener('click',()=>{ if (personalForm.reportValidity()) personalStep(true); });
+$('#personal-prev').addEventListener('click',()=>personalStep(false));
+$('#personal-skip').addEventListener('click',async()=>{ try { await changePersonal({action:'dismiss'}); closePersonalForm(); $('#profile-dialog').close(); } catch(e){showError('#personal-error',e.message);} });
+personalForm.addEventListener('submit',async event=>{
+  event.preventDefault(); const button=event.submitter; button.disabled=true;
+  try {
+    const values={};
+    for(const k of Object.keys(personalLabels)) {
+      if(k==='weight') continue;
+      const input=personalForm.elements[k];
+      if(healthKeys.includes(k)) {
+        const status=personalForm.elements[k+'Status'].value;
+        if(status==='yes' && !input.value.trim()) throw new Error(`请补充${personalLabels[k]}，或选择不清楚／暂不提供。`);
+        values[k]= status==='yes' ? input.value.trim() : ({none:'无',unknown:'不清楚',private:'暂不提供'})[status] || null;
+      } else values[k]=input.value.trim() ? ['age','height'].includes(k) ? Number(input.value) : input.value.trim() : null;
+    }
+    if(personalForm.elements.weight.value) values.weight=Number(personalForm.elements.weight.value)/(personalForm.elements.weightUnit.value==='jin'?2:1);
+    await changePersonal({action:'save',revision:Number(personalForm.dataset.revision),values,date:personalForm.elements.weightDate.value || state.config.today});
+    closePersonalForm(); toast('个人资料已保存，后续建议会参考这些信息。');
+  } catch(e){ showError('#personal-error',e.message); if(Number(personalForm.dataset.revision)!==personal.revision) { showError('#personal-error',e.message+' 请关闭并重新打开填写，避免覆盖新资料。'); } }
+  finally{button.disabled=false;}
 });
-['#consult-date','#consult-period'].forEach(id => $(id).addEventListener('change', updateChatRange));
+document.addEventListener('click',async event=>{
+  const button=event.target.closest('[data-accept-profile],[data-reject-profile],[data-delete-weight]'); if(!button)return;
+  button.disabled=true;
+  try {
+    if(button.dataset.deleteWeight) {
+      if(!confirm('删除这条体重记录？')) return;
+      await changePersonal({action:'delete_weight',id:button.dataset.deleteWeight});
+    } else if(button.dataset.acceptProfile) {
+      const values={};
+      for(const input of button.closest('[data-proposal]').querySelectorAll('[data-fact]')) values[input.dataset.fact]=['age','height','weight'].includes(input.dataset.fact) ? (input.value ? Number(input.value) : null) : input.value;
+      await changePersonal({action:'accept',id:button.dataset.acceptProfile,values}); toast('已确认并记入个人资料。');
+    } else { await changePersonal({action:'reject',id:button.dataset.rejectProfile}); toast('不会记入个人档案。'); }
+  } catch(e){toast(e.message);} finally{button.disabled=false;}
+});
+$('#profile-dialog').addEventListener('close',closePersonalForm);

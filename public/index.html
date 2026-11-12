@@ -204,20 +204,43 @@
       <section id="advisor-view" hidden>
         <div class="advisor-layout">
           <section class="panel advisor-panel">
-            <div class="chat-heading"><div class="chat-heading-title"><h2>营养师 <span class="chat-status-dot" aria-label="AI 助手"></span></h2><p id="profile-context-status">对话与个人资料自动保存</p></div><button class="text-button" id="open-profile">个人资料</button><button class="chat-icon-button" id="new-consult" aria-label="开启新对话" title="开启新对话"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-6M15 4l5 5M10 14l1-5 7-7 5 5-7 7-6 1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button></div>
+            <div class="chat-heading"><div class="chat-heading-title"><h2>营养师 <span class="chat-status-dot" aria-label="AI 助手"></span></h2><p id="profile-context-status">对话已保存 · 资料由你确认</p></div><button class="text-button" id="open-profile">个人资料</button><button class="chat-icon-button" id="new-consult" aria-label="开启新对话" title="开启新对话"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-6M15 4l5 5M10 14l1-5 7-7 5 5-7 7-6 1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button></div>
             <div id="consult-history" class="consult-history" role="log" aria-label="与营养师的对话" aria-live="polite"></div>
             <form id="consult-form" class="consult-form">
               <div id="chat-context-panel" class="advisor-meta" hidden><label>记录日期<input id="consult-date" type="date" required /></label><label>参考范围<select id="consult-period"><option value="day">当天</option><option value="week">一周</option></select></label></div>
-              <div class="quick-questions"><button type="button" data-question="请解读所选日期的饮食记录，并建议下一餐怎么搭配。">解读饮食</button><button type="button" data-question="结合我的忌口和偏好，给我一个明天的三餐搭配建议。">明天吃什么</button><button type="button" data-question="请检索营养知识库，解释膳食纤维的食物来源及适用范围，并提供来源。">查营养知识</button></div>
               <div class="chat-composer"><textarea id="consult-question" maxlength="2000" required rows="1" aria-label="发送给营养师的消息" placeholder="向营养师提问…"></textarea>
-                <div class="composer-toolbar"><button type="button" id="chat-record-toggle" aria-label="选择参考饮食记录" aria-expanded="false" aria-controls="chat-context-panel"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="3" stroke="currentColor" stroke-width="1.6"/><path d="M8 3v4m8-4v4M4 11h16" stroke="currentColor" stroke-width="1.6"/></svg><span id="chat-range-label">今日饮食</span></button><div class="composer-actions"><button type="button" class="chat-send" id="cancel-consult" hidden aria-label="停止生成" title="停止生成">■</button><button type="submit" class="chat-send" id="ask-advisor" aria-label="发送消息" title="发送消息"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 19V5m-6 6l6-6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></div>
+                <div class="composer-actions"><button type="button" class="chat-send" id="cancel-consult" hidden aria-label="停止生成" title="停止生成">■</button><button type="submit" class="chat-send" id="ask-advisor" aria-label="发送消息" title="发送消息"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 19V5m-6 6l6-6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
               </div>
-              <p class="privacy-note">AI 建议供参考 · 对话与饮食偏好自动保存</p><p id="consult-error" class="error-box" hidden role="alert"></p>
+              <p class="privacy-note">对话自动保存 · 个人资料经确认后记住</p><p id="consult-error" class="error-box" hidden role="alert"></p>
             </form>
           </section>
           <dialog id="profile-dialog"><div class="dialog-heading"><h2>我的个人资料</h2><button id="close-profile" class="icon-button" aria-label="关闭个人资料">×</button></div>
-            <p class="subtle">记录你的自述，作为后续营养问答的上下文。资料可修改或结束；家庭管理员可查看。</p>
-            <details class="panel memory-panel" open><summary>饮食偏好与限制 <span>手动填写及聊天中记下的资料</span></summary><div id="memory-list"></div><form id="memory-form" class="account-form">
+            <p class="subtle profile-privacy">你确认的资料会用于后续 AI 营养建议，发送至已配置的模型服务。家庭管理员 jeremy 可查看资料、体重和对话；其他家人不能查看。删除资料不会删除聊天原文。</p>
+            <section id="personal-summary"></section>
+            <button id="edit-personal" class="button secondary" type="button">填写或修改资料</button>
+            <form id="personal-form" class="personal-form" hidden>
+              <p class="personal-step" id="personal-step-label">1 / 2 · 基本情况</p>
+              <h3 id="personal-intro">先认识一下你</h3><p class="subtle">先填几项也可以，其余以后慢慢聊。每项均可跳过；清空已有内容并保存会删除该项。</p>
+              <fieldset id="personal-step-one"><legend>基本情况</legend><div class="personal-grid">
+                <label>年龄<input name="age" aria-label="年龄" type="number" min="1" max="120" step="1" inputmode="numeric" placeholder="岁" /></label>
+                <label>性别<select name="sex" aria-label="性别"><option value="">暂未填写</option><option>男</option><option>女</option><option>暂不提供</option></select></label>
+                <label>身高（厘米）<input name="height" aria-label="身高（厘米）" type="number" min="40" max="250" step="0.1" inputmode="decimal" placeholder="例如 170" /></label>
+              </div><div class="weight-input"><label>本次体重<input name="weight" aria-label="本次体重" type="number" min="2" max="800" step="0.1" inputmode="decimal" placeholder="选填" /></label><label>单位<select name="weightUnit" aria-label="体重单位"><option value="kg">公斤</option><option value="jin">斤</option></select></label></div>
+                <label>体重记录日期<input name="weightDate" aria-label="体重记录日期" type="date" /></label><p class="subtle">体重留空不改变历史；同一天再次填写会更正当天记录。</p>
+              </fieldset>
+              <fieldset id="personal-step-two" hidden><legend>饮食习惯与注意事项</legend>
+                <label>当前目标<input name="goal" maxlength="300" placeholder="例如：规律三餐、控制体重" /></label>
+                <div class="personal-grid"><label>家乡<input name="hometown" maxlength="300" placeholder="例如：湖南长沙" /></label><label>常住地<input name="residence" maxlength="300" placeholder="城市即可，无需地址" /></label></div>
+                <label>口味偏好<input name="preferences" maxlength="300" placeholder="喜欢什么、不喜欢什么" /></label>
+                <p class="subtle">家乡只是推荐线索，以你实际的口味和限制为准。</p>
+                <div id="health-fields"></div>
+              </fieldset>
+              <p id="personal-error" role="alert" class="error-box" hidden></p>
+              <div class="personal-actions"><button type="button" id="personal-prev" class="button secondary" hidden>上一步</button><button type="button" id="personal-next" class="button secondary">下一步</button><button type="submit" class="button primary">保存已填资料</button><button type="button" id="personal-skip" class="text-button">暂时跳过</button></div>
+            </form>
+            <div id="personal-pending"></div>
+            <details class="panel"><summary>体重记录</summary><div id="weight-history"></div></details>
+            <details class="panel memory-panel"><summary>饮食偏好与限制 <span>已有记录仍保留，可修改或删除</span></summary><div id="memory-list"></div><form id="memory-form" class="account-form">
               <label>记忆类型<select id="memory-kind"><option value="restriction">忌口或当前限制</option><option value="preference">饮食偏好</option><option value="goal">饮食目标</option></select></label>
               <label>记下什么<input id="memory-content" maxlength="300" required placeholder="例如：花生过敏；不爱吃香菜" /></label>
               <div class="manual-grid"><label>生效日期<input id="memory-start" type="date" required /></label><label>预计结束（选填）<input id="memory-end" type="date" /></label></div>

@@ -225,7 +225,7 @@ class App:
                                 target=next((u for u in app.accounts.list_users() if u['id']==q.get('userId',[''])[0]),None)
                                 if not target:raise ValueError('账号不存在。')
                                 service=app.user_service(target);advisor=app.advisor(target)
-                                return self.send(200,dict(user=target,stats=service.overview(q.get('date',[today()])[0],q.get('period',['week'])[0]),drafts=service.drafts(),memory=advisor.profile(),consultations=advisor.conversations()))
+                                return self.send(200,dict(user=target,stats=service.overview(q.get('date',[today()])[0],q.get('period',['week'])[0]),drafts=service.drafts(),memory=advisor.profile(),personal=advisor.persona.get(),consultations=advisor.conversations()))
                             return self.send(404,{'error':'接口不存在。'})
                         n=app.user_service(user)
                     elif path=='/api/auth/me' and method=='GET':
@@ -238,6 +238,9 @@ class App:
                     if method=='GET' and path=='/api/nutrition/config':
                         return self.send(200,dict(textReady=bool(c['apiKey'] and c['model']),imageReady=bool(c['apiKey'] and c['visionModel']),model=c['model'],visionModel=c['visionModel'],provider=c['provider'],today=today(),timeZone='Asia/Shanghai',advisorReady=app.bridge.ready))
                     advisor=app.advisor(user)
+                    if path=='/api/nutrition/profile':
+                        if method=='GET':return self.send(200,advisor.persona.get())
+                        if method=='POST':return self.send(200,advisor.persona.update(self.body(100000)))
                     if path=='/api/nutrition/memory':
                         if method=='GET':return self.send(200,advisor.profile())
                         if method=='POST':return self.send(200,advisor.save_memory(self.body(100000)))
